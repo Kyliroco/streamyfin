@@ -231,10 +231,13 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
             {/* Loading indicator for next page */}
             {isFetchingNextPage && (
               <View
-                style={{
-                  marginLeft: 8,
-                  marginTop: orientation === "horizontal" ? 37 : 70,
-                }}
+                style={useMemo(
+                  () => ({
+                    marginLeft: 8,
+                    marginTop: orientation === "horizontal" ? 37 : 70,
+                  }),
+                  [orientation]
+                )}
               >
                 <ActivityIndicator size='small' color={Colors.primary} />
               </View>

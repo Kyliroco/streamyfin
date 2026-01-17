@@ -1,5 +1,5 @@
 import { FlashList, type FlashListProps } from "@shopify/flash-list";
-import React, { useImperativeHandle, useRef } from "react";
+import React, { useImperativeHandle, useMemo, useRef } from "react";
 import { View, type ViewStyle } from "react-native";
 import { Text } from "./Text";
 
@@ -56,6 +56,14 @@ export const HorizontalScroll = <T,>(
     <View className='mr-2'>{renderItem(item, index)}</View>
   );
 
+  const memoizedContentContainerStyle = useMemo(
+    () => ({
+      paddingHorizontal: 16,
+      ...contentContainerStyle,
+    }),
+    [contentContainerStyle]
+  );
+
   if (!data || loading) {
     return (
       <View className='px-4'>
@@ -74,10 +82,7 @@ export const HorizontalScroll = <T,>(
         renderItem={renderFlashListItem}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          ...contentContainerStyle,
-        }}
+        contentContainerStyle={memoizedContentContainerStyle}
         keyExtractor={keyExtractor}
         ListEmptyComponent={() => (
           <View className='flex-1 justify-center items-center'>
