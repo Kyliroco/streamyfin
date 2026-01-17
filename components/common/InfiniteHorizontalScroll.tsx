@@ -18,7 +18,10 @@ import { Loader } from "../Loader";
 import { Text } from "./Text";
 
 interface HorizontalScrollProps
-  extends Omit<FlashListProps<BaseItemDto>, "renderItem" | "data" | "style"> {
+  extends Omit<
+    FlashListProps<BaseItemDto>,
+    "renderItem" | "data" | "style" | "estimatedItemSize"
+  > {
   queryFn: ({
     pageParam,
   }: {
@@ -32,6 +35,7 @@ interface HorizontalScrollProps
   loadingContainerStyle?: ViewStyle;
   height?: number;
   loading?: boolean;
+  estimatedItemSize?: number; // Estimated item width for horizontal lists
 }
 
 export function InfiniteHorizontalScroll({
@@ -44,6 +48,7 @@ export function InfiniteHorizontalScroll({
   loadingContainerStyle,
   loading = false,
   height = 164,
+  estimatedItemSize = 140, // Default width for movie/series posters
   ...props
 }: HorizontalScrollProps): React.ReactElement {
   const [api] = useAtom(apiAtom);
@@ -85,9 +90,8 @@ export function InfiniteHorizontalScroll({
 
   const flatData = useMemo(() => {
     return (
-      (data?.pages.flatMap((p) => p?.Items).filter(Boolean) as BaseItemDto[]) ||
-      []
-    );
+      data?.pages.flatMap((p) => p?.Items?.filter(Boolean) || []) || []
+    ) as BaseItemDto[];
   }, [data]);
 
   useEffect(() => {
@@ -121,6 +125,7 @@ export function InfiniteHorizontalScroll({
           <View className='mr-2'>{renderItem(item, index)}</View>
         )}
         horizontal
+        estimatedItemSize={estimatedItemSize}
         onEndReached={() => {
           if (hasNextPage) {
             fetchNextPage();

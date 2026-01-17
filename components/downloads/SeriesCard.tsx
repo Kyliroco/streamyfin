@@ -22,9 +22,7 @@ export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
 
   const deleteSeries = useCallback(
     async () =>
-      deleteItems(
-        items.map((item) => item.Id).filter((id) => id !== undefined),
-      ),
+      deleteItems(items.flatMap((item) => (item.Id ? [item.Id] : []))),
     [items],
   );
 
