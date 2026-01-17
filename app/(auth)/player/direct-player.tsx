@@ -58,6 +58,8 @@ import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function page() {
+  console.log("[DEBUG] ===== PLAYER COMPONENT MOUNTING =====");
+
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -67,6 +69,14 @@ export default function page() {
   const { settings, updateSettings } = useSettings();
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
+  // Log when component unmounts
+  useEffect(() => {
+    console.log("[DEBUG] Player component mounted");
+    return () => {
+      console.log("[DEBUG] ===== PLAYER COMPONENT UNMOUNTING =====");
+    };
+  }, []);
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -683,6 +693,21 @@ export default function page() {
     audioIndex,
     offline,
   ]);
+
+  // Track videoSource changes - this is what gets passed to MPV
+  useEffect(() => {
+    console.log("[DEBUG] *** videoSource changed - MPV will receive:", {
+      hasVideoSource: !!videoSource,
+      url: videoSource?.url,
+      startPosition: videoSource?.startPosition,
+      autoplay: videoSource?.autoplay,
+    });
+    if (!videoSource) {
+      console.warn(
+        "[DEBUG] ⚠️  WARNING: videoSource is undefined! MPV may crash!",
+      );
+    }
+  }, [videoSource]);
 
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
