@@ -201,11 +201,13 @@ export default function page() {
       hasUser: !!user?.Id,
     });
 
-    // Reset states immediately when itemId changes to prevent stale data
-    console.log("[DEBUG] Resetting states to null");
+    // Reset item states immediately when itemId changes to prevent stale data
+    // IMPORTANT: We do NOT reset stream here to avoid MPV receiving undefined source
+    // The stream will be updated naturally when the new item loads
+    console.log("[DEBUG] Resetting item and downloadedItem to null");
     setItem(null);
     setDownloadedItem(null);
-    setStream(null);
+    // DO NOT: setStream(null) - this causes MPV native crash
 
     const fetchItemData = async () => {
       console.log("[DEBUG] Starting fetchItemData", { itemId, offline });
@@ -589,7 +591,16 @@ export default function page() {
 
   /** Build video source config for MPV */
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {
-    if (!stream?.url) return undefined;
+    console.log("[DEBUG] videoSource useMemo recalculating", {
+      hasStream: !!stream,
+      streamUrl: stream?.url,
+      itemId: item?.Id,
+    });
+
+    if (!stream?.url) {
+      console.log("[DEBUG] videoSource returning undefined (no stream.url)");
+      return undefined;
+    }
 
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
@@ -652,6 +663,13 @@ export default function page() {
         Authorization: `MediaBrowser Token="${api.accessToken}"`,
       };
     }
+
+    console.log("[DEBUG] videoSource built successfully", {
+      url: source.url,
+      startPosition: source.startPosition,
+      hasExternalSubs: !!source.externalSubtitles,
+      hasHeaders: !!source.headers,
+    });
 
     return source;
   }, [
