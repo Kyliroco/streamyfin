@@ -58,8 +58,6 @@ import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function page() {
-  console.log("[DEBUG] ===== PLAYER COMPONENT MOUNTING =====");
-
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -70,13 +68,7 @@ export default function page() {
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
-  // Log when component unmounts
-  useEffect(() => {
-    console.log("[DEBUG] Player component mounted");
-    return () => {
-      console.log("[DEBUG] ===== PLAYER COMPONENT UNMOUNTING =====");
-    };
-  }, []);
+  useEffect(() => {}, []);
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -211,42 +203,25 @@ export default function page() {
     setDownloadedItem(null);
 
     const fetchItemData = async () => {
-      console.log("[DEBUG] Starting fetchItemData", { itemId, offline });
       setItemStatus({ isLoading: true, isError: false });
       try {
         let fetchedItem: BaseItemDto | null = null;
         if (offline && !Platform.isTV) {
-          console.log("[DEBUG] Fetching offline item", { itemId });
           const data = downloadUtils.getDownloadedItemById(itemId);
           if (data) {
             fetchedItem = data.item as BaseItemDto;
             setDownloadedItem(data);
-            console.log("[DEBUG] Offline item found", {
-              itemId: fetchedItem.Id,
-              name: fetchedItem.Name,
-            });
-          } else {
-            console.log("[DEBUG] Offline item NOT found", { itemId });
           }
         } else {
-          console.log("[DEBUG] Fetching online item", { itemId });
           const res = await getUserLibraryApi(api!).getItem({
             itemId,
             userId: user?.Id,
           });
           fetchedItem = res.data;
-          console.log("[DEBUG] Online item fetched", {
-            itemId: fetchedItem.Id,
-            name: fetchedItem.Name,
-          });
         }
         setItem(fetchedItem);
-        console.log("[DEBUG] Item set successfully", {
-          itemId: fetchedItem?.Id,
-        });
         setItemStatus({ isLoading: false, isError: false });
-      } catch (error) {
-        console.error("[DEBUG] Failed to fetch item:", error);
+      } catch (_error) {
         setItemStatus({ isLoading: false, isError: true });
       }
     };
@@ -280,16 +255,7 @@ export default function page() {
   });
 
   useEffect(() => {
-    console.log("[DEBUG] Stream fetch effect triggered", {
-      itemId,
-      hasItem: !!item,
-      itemIdFromState: item?.Id,
-      offline,
-      hasDownloadedItem: !!downloadedItem,
-    });
-
     const fetchStreamData = async () => {
-      console.log("[DEBUG] Starting fetchStreamData");
       setStreamStatus({ isLoading: true, isError: false });
       try {
         // Don't attempt to fetch stream data if item is not available
@@ -305,18 +271,8 @@ export default function page() {
           return;
         }
 
-        console.log("[DEBUG] Item validation passed, loading stream", {
-          itemId: item.Id,
-          offline,
-        });
-
         let result: Stream | null = null;
         if (offline && downloadedItem && downloadedItem.mediaSource) {
-          console.log("[DEBUG] Loading offline stream", {
-            hasDownloadedItem: !!downloadedItem,
-            hasMediaSource: !!downloadedItem.mediaSource,
-            videoFilePath: downloadedItem.videoFilePath,
-          });
           const url = downloadedItem.videoFilePath;
           if (item) {
             result = {
@@ -324,17 +280,8 @@ export default function page() {
               sessionId: "",
               url: url,
             };
-            console.log("[DEBUG] Offline stream result created", {
-              hasMediaSource: !!result.mediaSource,
-              url: result.url,
-            });
           }
         } else {
-          console.log("[DEBUG] Loading online stream", {
-            offline,
-            hasDownloadedItem: !!downloadedItem,
-            hasApi: !!api,
-          });
           // Validate required parameters before calling getStreamUrl
           if (!api) {
             console.warn("API not available for streaming");
@@ -364,39 +311,22 @@ export default function page() {
             deviceProfile: generateDeviceProfile(),
           });
           if (!res) {
-            console.log("[DEBUG] getStreamUrl returned null");
             return;
           }
           const { mediaSource, sessionId, url } = res;
 
           if (!sessionId || !mediaSource || !url) {
-            console.log("[DEBUG] Missing stream data", {
-              hasSessionId: !!sessionId,
-              hasMediaSource: !!mediaSource,
-              hasUrl: !!url,
-            });
             Alert.alert(
               t("player.error"),
               t("player.failed_to_get_stream_url"),
             );
             return;
           }
-          console.log("[DEBUG] Online stream result created", {
-            sessionId,
-            hasMediaSource: !!mediaSource,
-            url,
-          });
           result = { mediaSource, sessionId, url };
         }
-        console.log("[DEBUG] Setting stream", {
-          hasResult: !!result,
-          itemId: item.Id,
-        });
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
-        console.log("[DEBUG] Stream set successfully");
-      } catch (error) {
-        console.error("Failed to fetch stream:", error);
+      } catch (_error) {
         setStreamStatus({ isLoading: false, isError: true });
       }
     };
@@ -662,24 +592,8 @@ export default function page() {
     offline,
   ]);
 
-  // Track videoSource changes - this is what gets passed to MPV
-  useEffect(() => {
-    console.log("[DEBUG] *** videoSource changed - MPV will receive:", {
-      hasVideoSource: !!videoSource,
-      url: videoSource?.url,
-      startPosition: videoSource?.startPosition,
-      autoplay: videoSource?.autoplay,
-    });
-    if (!videoSource) {
-      console.warn(
-        "[DEBUG] ⚠️  WARNING: videoSource is undefined! MPV may crash!",
-      );
-    }
-  }, [videoSource]);
-
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
-
     try {
       const { volume: currentVolume } = await VolumeManager.getVolume();
       const newVolume = Math.min(currentVolume + 0.1, 1.0);

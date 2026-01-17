@@ -324,15 +324,7 @@ export const Controls: FC<Props> = ({
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
-      console.log("[DEBUG] goToItemCommon called", {
-        itemId: item?.Id,
-        itemName: item?.Name,
-        offline,
-        hasSettings: !!settings,
-      });
-
       if (!item || !settings) {
-        console.log("[DEBUG] goToItemCommon: missing item or settings");
         return;
       }
       lightHapticFeedback();
@@ -365,7 +357,15 @@ export const Controls: FC<Props> = ({
           item.UserData?.PlaybackPositionTicks?.toString() ?? "",
       });
     },
-    [settings, subtitleIndex, audioIndex, mediaSource, bitrateValue, router, offline],
+    [
+      settings,
+      subtitleIndex,
+      audioIndex,
+      mediaSource,
+      bitrateValue,
+      router,
+      offline,
+    ],
   );
 
   const goToPreviousItem = useCallback(() => {
