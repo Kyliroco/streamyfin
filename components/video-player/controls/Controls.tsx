@@ -324,15 +324,7 @@ export const Controls: FC<Props> = ({
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
-      console.log("[DEBUG] goToItemCommon called", {
-        itemId: item?.Id,
-        itemName: item?.Name,
-        offline,
-        hasSettings: !!settings,
-      });
-
       if (!item || !settings) {
-        console.log("[DEBUG] goToItemCommon: missing item or settings");
         return;
       }
       lightHapticFeedback();
@@ -352,27 +344,6 @@ export const Controls: FC<Props> = ({
         source: mediaSource ?? undefined,
       });
 
-      const queryParams = new URLSearchParams({
-        ...(offline && { offline: "true" }),
-        itemId: item.Id ?? "",
-        audioIndex: defaultAudioIndex?.toString() ?? "",
-        subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-        mediaSourceId: newMediaSource?.Id ?? "",
-        bitrateValue: bitrateValue?.toString(),
-        playbackPosition:
-          item.UserData?.PlaybackPositionTicks?.toString() ?? "",
-      }).toString();
-
-      console.log("[DEBUG] goToItemCommon: navigating with params", {
-        itemId: item.Id,
-        offline,
-        mediaSourceId: newMediaSource?.Id,
-        queryParamsString: queryParams,
-      });
-
-      console.log(
-        "[DEBUG] goToItemCommon: using setParams to avoid component remount",
-      );
       // Use setParams instead of replace to avoid unmounting/remounting the player
       // which would reset all states including stream, causing MPV to receive undefined source
       router.setParams({

@@ -242,12 +242,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
             >
               <TouchableOpacity
                 onPress={() => {
-                  console.log("[DEBUG] EpisodeList: episode clicked", {
-                    clickedItemId: otherItem.Id,
-                    clickedItemName: otherItem.Name,
-                    currentItemId: item.Id,
-                    isOffline,
-                  });
                   goToItem(otherItem);
                 }}
               >
