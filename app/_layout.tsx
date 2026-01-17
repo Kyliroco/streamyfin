@@ -300,8 +300,24 @@ function Layout() {
           }
         })
         .catch((reason: any) => {
-          console.error("Failed to get push token:", reason);
-          writeErrorLog("Failed to get Expo push token", reason);
+          // Check if this is a Firebase auth error (FCM not configured)
+          const isFCMAuthError = reason?.message?.includes("FIS_AUTH_ERROR");
+
+          if (isFCMAuthError) {
+            // This is expected when Firebase Cloud Messaging is not configured
+            // Push notifications are optional, so just log as info
+            console.log(
+              "Push notifications unavailable: Firebase Cloud Messaging not configured. " +
+              "This is normal and the app will work fine without push notifications.",
+            );
+            writeInfoLog(
+              "Push token registration skipped - FCM not configured (optional feature)",
+            );
+          } else {
+            // For other errors, log as error for debugging
+            console.error("Failed to get push token:", reason);
+            writeErrorLog("Failed to get Expo push token", reason);
+          }
         });
     }
   }, [user]);
