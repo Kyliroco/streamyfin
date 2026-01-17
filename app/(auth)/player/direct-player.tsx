@@ -194,6 +194,11 @@ export default function page() {
   }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
 
   useEffect(() => {
+    // Reset states immediately when itemId changes to prevent stale data
+    setItem(null);
+    setDownloadedItem(null);
+    setStream(null);
+
     const fetchItemData = async () => {
       setItemStatus({ isLoading: true, isError: false });
       try {
@@ -254,6 +259,16 @@ export default function page() {
         // Don't attempt to fetch stream data if item is not available
         if (!item?.Id) {
           console.log("Item not loaded yet, skipping stream data fetch");
+          setStreamStatus({ isLoading: false, isError: false });
+          return;
+        }
+
+        // CRITICAL: Ensure item.Id matches the URL itemId parameter
+        // This prevents loading stream with mismatched data during episode changes
+        if (item.Id !== itemId) {
+          console.log(
+            `Item ID mismatch: item.Id=${item.Id} vs itemId=${itemId}, skipping stream fetch`,
+          );
           setStreamStatus({ isLoading: false, isError: false });
           return;
         }
