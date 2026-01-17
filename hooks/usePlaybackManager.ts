@@ -68,6 +68,7 @@ export const usePlaybackManager = ({
 }: PlaybackManagerProps = {}) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+  const queryClient = useQueryClient();
   const { isConnected } = useNetworkStatus();
   // PERFORMANCE FIX: Use cached downloadedItems instead of getDownloadedItems()
   const { getDownloadedItemById, updateDownloadedItem, downloadedItems } =
