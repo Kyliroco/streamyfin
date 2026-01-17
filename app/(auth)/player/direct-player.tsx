@@ -58,6 +58,8 @@ import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function page() {
+  console.log("[DEBUG] ===== PLAYER COMPONENT MOUNTING =====");
+
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -67,6 +69,14 @@ export default function page() {
   const { settings, updateSettings } = useSettings();
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
+  // Log when component unmounts
+  useEffect(() => {
+    console.log("[DEBUG] Player component mounted");
+    return () => {
+      console.log("[DEBUG] ===== PLAYER COMPONENT UNMOUNTING =====");
+    };
+  }, []);
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -194,18 +204,11 @@ export default function page() {
   }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
 
   useEffect(() => {
-    console.log("[DEBUG] Item fetch effect triggered", {
-      itemId,
-      offline,
-      hasApi: !!api,
-      hasUser: !!user?.Id,
-    });
-
-    // Reset states immediately when itemId changes to prevent stale data
-    console.log("[DEBUG] Resetting states to null");
+    // Reset item states immediately when itemId changes to prevent stale data
+    // IMPORTANT: We do NOT reset stream here to avoid MPV receiving undefined source
+    // The stream will be updated naturally when the new item loads
     setItem(null);
     setDownloadedItem(null);
-    setStream(null);
 
     const fetchItemData = async () => {
       console.log("[DEBUG] Starting fetchItemData", { itemId, offline });
@@ -291,10 +294,6 @@ export default function page() {
       try {
         // Don't attempt to fetch stream data if item is not available
         if (!item?.Id) {
-          console.log(
-            "[DEBUG] Item not loaded yet, skipping stream data fetch",
-            { hasItem: !!item, itemId },
-          );
           setStreamStatus({ isLoading: false, isError: false });
           return;
         }
@@ -302,9 +301,6 @@ export default function page() {
         // CRITICAL: Ensure item.Id matches the URL itemId parameter
         // This prevents loading stream with mismatched data during episode changes
         if (item.Id !== itemId) {
-          console.log(
-            `[DEBUG] Item ID mismatch: item.Id=${item.Id} vs itemId=${itemId}, skipping stream fetch`,
-          );
           setStreamStatus({ isLoading: false, isError: false });
           return;
         }
@@ -665,6 +661,21 @@ export default function page() {
     audioIndex,
     offline,
   ]);
+
+  // Track videoSource changes - this is what gets passed to MPV
+  useEffect(() => {
+    console.log("[DEBUG] *** videoSource changed - MPV will receive:", {
+      hasVideoSource: !!videoSource,
+      url: videoSource?.url,
+      startPosition: videoSource?.startPosition,
+      autoplay: videoSource?.autoplay,
+    });
+    if (!videoSource) {
+      console.warn(
+        "[DEBUG] ⚠️  WARNING: videoSource is undefined! MPV may crash!",
+      );
+    }
+  }, [videoSource]);
 
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;

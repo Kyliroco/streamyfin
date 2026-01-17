@@ -352,7 +352,9 @@ export const Controls: FC<Props> = ({
         source: mediaSource ?? undefined,
       });
 
-      const queryParams = new URLSearchParams({
+      // Use setParams instead of replace to avoid unmounting/remounting the player
+      // which would reset all states including stream, causing MPV to receive undefined source
+      router.setParams({
         ...(offline && { offline: "true" }),
         itemId: item.Id ?? "",
         audioIndex: defaultAudioIndex?.toString() ?? "",
@@ -361,16 +363,7 @@ export const Controls: FC<Props> = ({
         bitrateValue: bitrateValue?.toString(),
         playbackPosition:
           item.UserData?.PlaybackPositionTicks?.toString() ?? "",
-      }).toString();
-
-      console.log("[DEBUG] goToItemCommon: navigating with params", {
-        itemId: item.Id,
-        offline,
-        mediaSourceId: newMediaSource?.Id,
-        queryParamsString: queryParams,
       });
-
-      router.replace(`player/direct-player?${queryParams}` as any);
     },
     [settings, subtitleIndex, audioIndex, mediaSource, bitrateValue, router, offline],
   );
