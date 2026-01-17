@@ -4,6 +4,7 @@ import {
   type QueryKey,
   useQuery,
 } from "@tanstack/react-query";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
@@ -24,6 +25,41 @@ interface Props extends ViewProps {
   scrollY?: number; // For lazy loading
   enableLazyLoading?: boolean; // Enable/disable lazy loading
 }
+
+// Memoized item component to prevent unnecessary re-renders
+const CollectionItem = React.memo<{
+  item: BaseItemDto;
+  orientation: "horizontal" | "vertical";
+}>(({ item, orientation }) => (
+  <TouchableItemRouter
+    item={item}
+    key={item.Id}
+    className={`mr-2 ${orientation === "horizontal" ? "w-44" : "w-28"}`}
+  >
+    {item.Type === "Episode" && orientation === "horizontal" && (
+      <ContinueWatchingPoster item={item} />
+    )}
+    {item.Type === "Episode" && orientation === "vertical" && (
+      <SeriesPoster item={item} />
+    )}
+    {item.Type === "Movie" && orientation === "horizontal" && (
+      <ContinueWatchingPoster item={item} />
+    )}
+    {item.Type === "Movie" && orientation === "vertical" && (
+      <MoviePoster item={item} />
+    )}
+    {item.Type === "Series" && orientation === "vertical" && (
+      <SeriesPoster item={item} />
+    )}
+    {item.Type === "Series" && orientation === "horizontal" && (
+      <ContinueWatchingPoster item={item} />
+    )}
+    {item.Type === "Program" && <ContinueWatchingPoster item={item} />}
+    <ItemCardText item={item} />
+  </TouchableItemRouter>
+));
+
+CollectionItem.displayName = "CollectionItem";
 
 export const ScrollingCollectionList: React.FC<Props> = ({
   title,
@@ -101,36 +137,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View className='px-4 flex flex-row'>
             {data?.map((item) => (
-              <TouchableItemRouter
-                item={item}
-                key={item.Id}
-                className={`mr-2 
-                  ${orientation === "horizontal" ? "w-44" : "w-28"}
-                `}
-              >
-                {item.Type === "Episode" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                {item.Type === "Episode" && orientation === "vertical" && (
-                  <SeriesPoster item={item} />
-                )}
-                {item.Type === "Movie" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                {item.Type === "Movie" && orientation === "vertical" && (
-                  <MoviePoster item={item} />
-                )}
-                {item.Type === "Series" && orientation === "vertical" && (
-                  <SeriesPoster item={item} />
-                )}
-                {item.Type === "Series" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                {item.Type === "Program" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                <ItemCardText item={item} />
-              </TouchableItemRouter>
+              <CollectionItem key={item.Id} item={item} orientation={orientation} />
             ))}
           </View>
         </ScrollView>

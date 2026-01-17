@@ -3,7 +3,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import {
@@ -29,6 +29,46 @@ type Props = {
   item: BaseItemDto;
   initialSeasonIndex?: number;
 };
+
+// Memoized episode item component to prevent unnecessary re-renders
+const EpisodeItem = React.memo<{
+  episode: BaseItemDto;
+  isOffline: boolean;
+}>(({ episode, isOffline }) => {
+  const { t } = useTranslation();
+
+  return (
+    <TouchableItemRouter item={episode} key={episode.Id} className='flex flex-col mb-4'>
+      <View className='flex flex-row items-start mb-2'>
+        <View className='mr-2'>
+          <ContinueWatchingPoster size='small' item={episode} useEpisodePoster />
+        </View>
+        <View className='shrink'>
+          <Text numberOfLines={2} className=''>
+            {episode.Name}
+          </Text>
+          <Text numberOfLines={1} className='text-xs text-neutral-500'>
+            {`S${episode.ParentIndexNumber?.toString()}:E${episode.IndexNumber?.toString()}`}
+          </Text>
+          <Text className='text-xs text-neutral-500'>
+            {runtimeTicksToSeconds(episode.RunTimeTicks)}
+          </Text>
+        </View>
+        {!isOffline && (
+          <View className='self-start ml-auto -mt-0.5'>
+            <DownloadSingleItem item={episode} />
+          </View>
+        )}
+      </View>
+
+      <Text numberOfLines={3} className='text-xs text-neutral-500 shrink'>
+        {episode.Overview}
+      </Text>
+    </TouchableItemRouter>
+  );
+});
+
+EpisodeItem.displayName = "EpisodeItem";
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
 
@@ -194,44 +234,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
           </View>
         ) : (
           episodes?.map((e: BaseItemDto) => (
-            <TouchableItemRouter
-              item={e}
-              key={e.Id}
-              className='flex flex-col mb-4'
-            >
-              <View className='flex flex-row items-start mb-2'>
-                <View className='mr-2'>
-                  <ContinueWatchingPoster
-                    size='small'
-                    item={e}
-                    useEpisodePoster
-                  />
-                </View>
-                <View className='shrink'>
-                  <Text numberOfLines={2} className=''>
-                    {e.Name}
-                  </Text>
-                  <Text numberOfLines={1} className='text-xs text-neutral-500'>
-                    {`S${e.ParentIndexNumber?.toString()}:E${e.IndexNumber?.toString()}`}
-                  </Text>
-                  <Text className='text-xs text-neutral-500'>
-                    {runtimeTicksToSeconds(e.RunTimeTicks)}
-                  </Text>
-                </View>
-                {!isOffline && (
-                  <View className='self-start ml-auto -mt-0.5'>
-                    <DownloadSingleItem item={e} />
-                  </View>
-                )}
-              </View>
-
-              <Text
-                numberOfLines={3}
-                className='text-xs text-neutral-500 shrink'
-              >
-                {e.Overview}
-              </Text>
-            </TouchableItemRouter>
+            <EpisodeItem key={e.Id} episode={e} isOffline={isOffline} />
           ))
         )}
         {(episodes?.length || 0) === 0 ? (

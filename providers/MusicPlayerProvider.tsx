@@ -558,21 +558,24 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const mediaInfoMap: Record<string, TrackMediaInfo> = {};
       const failedItemIds: string[] = []; // Track items that failed to prepare
 
-      // Process tracks BEFORE the start index (insert at position 0, pushing current track forward)
-      const beforeTracks: Track[] = [];
-      const beforeSuccessIds: string[] = []; // Track successful IDs to maintain order
-      for (let i = 0; i < startIndex; i++) {
-        const item = queue[i];
-        if (!item.Id) continue;
+      // Parallelize track preparation BEFORE the start index
+      const beforeItems = queue.slice(0, startIndex).filter((item) => item.Id);
+      const beforePreparePromises = beforeItems.map((item) =>
+        prepareTrack(item, preferLocal)
+          .then((prepared) => ({ item, prepared }))
+          .catch(() => ({ item, prepared: null }))
+      );
 
-        const prepared = await prepareTrack(item, preferLocal);
+      const beforeResults = await Promise.all(beforePreparePromises);
+      const beforeTracks: Track[] = [];
+
+      for (const { item, prepared } of beforeResults) {
         if (prepared) {
           beforeTracks.push(prepared.track);
-          beforeSuccessIds.push(item.Id);
-          if (prepared.mediaInfo) {
+          if (prepared.mediaInfo && item.Id) {
             mediaInfoMap[item.Id] = prepared.mediaInfo;
           }
-        } else {
+        } else if (item.Id) {
           failedItemIds.push(item.Id);
         }
       }
@@ -588,26 +591,36 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }));
       }
 
-      // Process tracks AFTER the start index (append to end)
-      for (let i = startIndex + 1; i < queue.length; i++) {
-        const item = queue[i];
-        if (!item.Id) continue;
+      // Parallelize track preparation AFTER the start index
+      const afterItems = queue.slice(startIndex + 1).filter((item) => item.Id);
+      const afterPreparePromises = afterItems.map((item) =>
+        prepareTrack(item, preferLocal)
+          .then((prepared) => ({ item, prepared }))
+          .catch(() => ({ item, prepared: null }))
+      );
 
-        const prepared = await prepareTrack(item, preferLocal);
+      const afterResults = await Promise.all(afterPreparePromises);
+      const afterTracks: Track[] = [];
+      const afterMediaInfoMap: Record<string, TrackMediaInfo> = {};
+
+      for (const { item, prepared } of afterResults) {
         if (prepared) {
-          await TrackPlayer.add(prepared.track); // Append to end
+          afterTracks.push(prepared.track);
           if (prepared.mediaInfo && item.Id) {
-            setState((prev) => ({
-              ...prev,
-              trackMediaInfoMap: {
-                ...prev.trackMediaInfoMap,
-                [item.Id!]: prepared.mediaInfo!,
-              },
-            }));
+            afterMediaInfoMap[item.Id] = prepared.mediaInfo;
           }
-        } else {
+        } else if (item.Id) {
           failedItemIds.push(item.Id);
         }
+      }
+
+      // Add all after tracks at once
+      if (afterTracks.length > 0) {
+        await TrackPlayer.add(afterTracks);
+        setState((prev) => ({
+          ...prev,
+          trackMediaInfoMap: { ...prev.trackMediaInfoMap, ...afterMediaInfoMap },
+        }));
       }
 
       // Remove failed items from queue to keep it in sync with TrackPlayer
