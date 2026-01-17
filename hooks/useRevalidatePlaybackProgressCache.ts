@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useTwoWaySync } from "./useTwoWaySync";
 
