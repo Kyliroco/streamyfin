@@ -4,7 +4,7 @@ import {
   type QueryKey,
   useInfiniteQuery,
 } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -33,6 +33,60 @@ interface Props extends ViewProps {
   enabled?: boolean;
   onLoaded?: () => void;
 }
+
+// Memoized item component to prevent unnecessary re-renders
+const CollectionItem = React.memo<{
+  item: BaseItemDto;
+  orientation: "horizontal" | "vertical";
+  index: number;
+}>(({ item, orientation, index }) => (
+  <TouchableItemRouter
+    item={item}
+    key={`${item.Id}-${index}`}
+    className={`mr-2 ${orientation === "horizontal" ? "w-44" : "w-28"}`}
+  >
+    {item.Type === "Episode" && orientation === "horizontal" && (
+      <ContinueWatchingPoster item={item} />
+    )}
+    {item.Type === "Episode" && orientation === "vertical" && (
+      <SeriesPoster item={item} />
+    )}
+    {item.Type === "Movie" && orientation === "horizontal" && (
+      <ContinueWatchingPoster item={item} />
+    )}
+    {item.Type === "Movie" && orientation === "vertical" && (
+      <MoviePoster item={item} />
+    )}
+    {item.Type === "Series" && orientation === "vertical" && (
+      <SeriesPoster item={item} />
+    )}
+    {item.Type === "Series" && orientation === "horizontal" && (
+      <ContinueWatchingPoster item={item} />
+    )}
+    {item.Type === "Program" && <ContinueWatchingPoster item={item} />}
+    {item.Type === "BoxSet" && orientation === "vertical" && (
+      <MoviePoster item={item} />
+    )}
+    {item.Type === "BoxSet" && orientation === "horizontal" && (
+      <ContinueWatchingPoster item={item} />
+    )}
+    {item.Type === "Playlist" && orientation === "vertical" && (
+      <MoviePoster item={item} />
+    )}
+    {item.Type === "Playlist" && orientation === "horizontal" && (
+      <ContinueWatchingPoster item={item} />
+    )}
+    {item.Type === "Video" && orientation === "vertical" && (
+      <MoviePoster item={item} />
+    )}
+    {item.Type === "Video" && orientation === "horizontal" && (
+      <ContinueWatchingPoster item={item} />
+    )}
+    <ItemCardText item={item} />
+  </TouchableItemRouter>
+));
+
+CollectionItem.displayName = "CollectionItem";
 
 export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   title,
@@ -109,23 +163,26 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     return allItems.map((_, index) => index * itemWidth);
   }, [allItems, orientation]);
 
+  const handleScroll = useCallback(
+    (event: any) => {
+      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+      const paddingToBottom = 20;
+
+      // Check if we're near the end of the scroll
+      if (
+        layoutMeasurement.width + contentOffset.x >=
+        contentSize.width - paddingToBottom
+      ) {
+        if (hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
+
   if (hideIfEmpty === true && allItems.length === 0 && !isLoading) return null;
   if (disabled || !title) return null;
-
-  const handleScroll = (event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 20;
-
-    // Check if we're near the end of the scroll
-    if (
-      layoutMeasurement.width + contentOffset.x >=
-      contentSize.width - paddingToBottom
-    ) {
-      if (hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
-      }
-    }
-  };
 
   return (
     <View {...props}>
@@ -179,54 +236,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
         >
           <View className='px-4 flex flex-row'>
             {allItems.map((item, index) => (
-              <TouchableItemRouter
-                item={item}
+              <CollectionItem
                 key={`${item.Id}-${index}`}
-                className={`mr-2
-                  ${orientation === "horizontal" ? "w-44" : "w-28"}
-                `}
-              >
-                {item.Type === "Episode" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                {item.Type === "Episode" && orientation === "vertical" && (
-                  <SeriesPoster item={item} />
-                )}
-                {item.Type === "Movie" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                {item.Type === "Movie" && orientation === "vertical" && (
-                  <MoviePoster item={item} />
-                )}
-                {item.Type === "Series" && orientation === "vertical" && (
-                  <SeriesPoster item={item} />
-                )}
-                {item.Type === "Series" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                {item.Type === "Program" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                {item.Type === "BoxSet" && orientation === "vertical" && (
-                  <MoviePoster item={item} />
-                )}
-                {item.Type === "BoxSet" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                {item.Type === "Playlist" && orientation === "vertical" && (
-                  <MoviePoster item={item} />
-                )}
-                {item.Type === "Playlist" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                {item.Type === "Video" && orientation === "vertical" && (
-                  <MoviePoster item={item} />
-                )}
-                {item.Type === "Video" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
-                <ItemCardText item={item} />
-              </TouchableItemRouter>
+                item={item}
+                orientation={orientation}
+                index={index}
+              />
             ))}
             {/* Loading indicator for next page */}
             {isFetchingNextPage && (
