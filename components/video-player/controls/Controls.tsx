@@ -357,7 +357,7 @@ export const Controls: FC<Props> = ({
 
       router.replace(`player/direct-player?${queryParams}` as any);
     },
-    [settings, subtitleIndex, audioIndex, mediaSource, bitrateValue, router],
+    [settings, subtitleIndex, audioIndex, mediaSource, bitrateValue, router, offline],
   );
 
   const goToPreviousItem = useCallback(() => {
