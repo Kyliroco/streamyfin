@@ -204,58 +204,33 @@ export default function page() {
   }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
 
   useEffect(() => {
-    console.log("[DEBUG] Item fetch effect triggered", {
-      itemId,
-      offline,
-      hasApi: !!api,
-      hasUser: !!user?.Id,
-    });
-
     // Reset item states immediately when itemId changes to prevent stale data
     // IMPORTANT: We do NOT reset stream here to avoid MPV receiving undefined source
     // The stream will be updated naturally when the new item loads
-    console.log("[DEBUG] Resetting item and downloadedItem to null");
     setItem(null);
     setDownloadedItem(null);
-    // DO NOT: setStream(null) - this causes MPV native crash
 
     const fetchItemData = async () => {
-      console.log("[DEBUG] Starting fetchItemData", { itemId, offline });
       setItemStatus({ isLoading: true, isError: false });
       try {
         let fetchedItem: BaseItemDto | null = null;
         if (offline && !Platform.isTV) {
-          console.log("[DEBUG] Fetching offline item", { itemId });
           const data = downloadUtils.getDownloadedItemById(itemId);
           if (data) {
             fetchedItem = data.item as BaseItemDto;
             setDownloadedItem(data);
-            console.log("[DEBUG] Offline item found", {
-              itemId: fetchedItem.Id,
-              name: fetchedItem.Name,
-            });
-          } else {
-            console.log("[DEBUG] Offline item NOT found", { itemId });
           }
         } else {
-          console.log("[DEBUG] Fetching online item", { itemId });
           const res = await getUserLibraryApi(api!).getItem({
             itemId,
             userId: user?.Id,
           });
           fetchedItem = res.data;
-          console.log("[DEBUG] Online item fetched", {
-            itemId: fetchedItem.Id,
-            name: fetchedItem.Name,
-          });
         }
         setItem(fetchedItem);
-        console.log("[DEBUG] Item set successfully", {
-          itemId: fetchedItem?.Id,
-        });
         setItemStatus({ isLoading: false, isError: false });
       } catch (error) {
-        console.error("[DEBUG] Failed to fetch item:", error);
+        console.error("Failed to fetch item:", error);
         setItemStatus({ isLoading: false, isError: true });
       }
     };
@@ -289,24 +264,11 @@ export default function page() {
   });
 
   useEffect(() => {
-    console.log("[DEBUG] Stream fetch effect triggered", {
-      itemId,
-      hasItem: !!item,
-      itemIdFromState: item?.Id,
-      offline,
-      hasDownloadedItem: !!downloadedItem,
-    });
-
     const fetchStreamData = async () => {
-      console.log("[DEBUG] Starting fetchStreamData");
       setStreamStatus({ isLoading: true, isError: false });
       try {
         // Don't attempt to fetch stream data if item is not available
         if (!item?.Id) {
-          console.log(
-            "[DEBUG] Item not loaded yet, skipping stream data fetch",
-            { hasItem: !!item, itemId },
-          );
           setStreamStatus({ isLoading: false, isError: false });
           return;
         }
@@ -314,25 +276,12 @@ export default function page() {
         // CRITICAL: Ensure item.Id matches the URL itemId parameter
         // This prevents loading stream with mismatched data during episode changes
         if (item.Id !== itemId) {
-          console.log(
-            `[DEBUG] Item ID mismatch: item.Id=${item.Id} vs itemId=${itemId}, skipping stream fetch`,
-          );
           setStreamStatus({ isLoading: false, isError: false });
           return;
         }
 
-        console.log("[DEBUG] Item validation passed, loading stream", {
-          itemId: item.Id,
-          offline,
-        });
-
         let result: Stream | null = null;
         if (offline && downloadedItem && downloadedItem.mediaSource) {
-          console.log("[DEBUG] Loading offline stream", {
-            hasDownloadedItem: !!downloadedItem,
-            hasMediaSource: !!downloadedItem.mediaSource,
-            videoFilePath: downloadedItem.videoFilePath,
-          });
           const url = downloadedItem.videoFilePath;
           if (item) {
             result = {
@@ -340,17 +289,8 @@ export default function page() {
               sessionId: "",
               url: url,
             };
-            console.log("[DEBUG] Offline stream result created", {
-              hasMediaSource: !!result.mediaSource,
-              url: result.url,
-            });
           }
         } else {
-          console.log("[DEBUG] Loading online stream", {
-            offline,
-            hasDownloadedItem: !!downloadedItem,
-            hasApi: !!api,
-          });
           // Validate required parameters before calling getStreamUrl
           if (!api) {
             console.warn("API not available for streaming");
@@ -379,38 +319,20 @@ export default function page() {
             subtitleStreamIndex: subtitleIndex,
             deviceProfile: generateDeviceProfile(),
           });
-          if (!res) {
-            console.log("[DEBUG] getStreamUrl returned null");
-            return;
-          }
+          if (!res) return;
           const { mediaSource, sessionId, url } = res;
 
           if (!sessionId || !mediaSource || !url) {
-            console.log("[DEBUG] Missing stream data", {
-              hasSessionId: !!sessionId,
-              hasMediaSource: !!mediaSource,
-              hasUrl: !!url,
-            });
             Alert.alert(
               t("player.error"),
               t("player.failed_to_get_stream_url"),
             );
             return;
           }
-          console.log("[DEBUG] Online stream result created", {
-            sessionId,
-            hasMediaSource: !!mediaSource,
-            url,
-          });
           result = { mediaSource, sessionId, url };
         }
-        console.log("[DEBUG] Setting stream", {
-          hasResult: !!result,
-          itemId: item.Id,
-        });
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
-        console.log("[DEBUG] Stream set successfully");
       } catch (error) {
         console.error("Failed to fetch stream:", error);
         setStreamStatus({ isLoading: false, isError: true });
@@ -601,16 +523,7 @@ export default function page() {
 
   /** Build video source config for MPV */
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {
-    console.log("[DEBUG] videoSource useMemo recalculating", {
-      hasStream: !!stream,
-      streamUrl: stream?.url,
-      itemId: item?.Id,
-    });
-
-    if (!stream?.url) {
-      console.log("[DEBUG] videoSource returning undefined (no stream.url)");
-      return undefined;
-    }
+    if (!stream?.url) return undefined;
 
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
@@ -673,13 +586,6 @@ export default function page() {
         Authorization: `MediaBrowser Token="${api.accessToken}"`,
       };
     }
-
-    console.log("[DEBUG] videoSource built successfully", {
-      url: source.url,
-      startPosition: source.startPosition,
-      hasExternalSubs: !!source.externalSubtitles,
-      hasHeaders: !!source.headers,
-    });
 
     return source;
   }, [
