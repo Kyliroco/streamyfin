@@ -100,7 +100,14 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
         <TouchableOpacity
           key={_item.Id}
           onPress={() => {
+            console.log("[DEBUG] SeasonEpisodesCarousel: episode clicked", {
+              clickedItemId: _item.Id,
+              clickedItemName: _item.Name,
+              currentItemId: item?.Id,
+              isOffline,
+            });
             router.setParams({ id: _item.Id });
+            console.log("[DEBUG] SeasonEpisodesCarousel: setParams called");
           }}
           className={`flex flex-col w-44
                   ${item?.Id === _item.Id ? "" : "opacity-50"}

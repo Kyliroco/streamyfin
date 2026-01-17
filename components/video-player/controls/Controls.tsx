@@ -324,7 +324,15 @@ export const Controls: FC<Props> = ({
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
+      console.log("[DEBUG] goToItemCommon called", {
+        itemId: item?.Id,
+        itemName: item?.Name,
+        offline,
+        hasSettings: !!settings,
+      });
+
       if (!item || !settings) {
+        console.log("[DEBUG] goToItemCommon: missing item or settings");
         return;
       }
       lightHapticFeedback();
