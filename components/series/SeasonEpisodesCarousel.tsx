@@ -31,6 +31,8 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const router = useRouter();
+  const { isOffline } = useOfflineMode();
   // PERFORMANCE FIX: Use cached downloadedItems from provider instead of calling getDownloadedItems()
   // This avoids expensive database parsing and unnecessary re-renders
   const { downloadedItems: downloadedFiles } = useDownload();
@@ -49,7 +51,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     queryKey: ["episodes", seasonId, isOffline],
     queryFn: async () => {
       if (isOffline) {
-        return getDownloadedEpisodesBySeasonId(getDownloadedItems(), seasonId!);
+        return getDownloadedEpisodesBySeasonId(downloadedFiles, seasonId!);
       }
       if (!api || !user?.Id || !item?.SeriesId) return [];
       const response = await getTvShowsApi(api).getEpisodes({
