@@ -4,6 +4,8 @@ import { Dimensions, View } from "react-native";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
+const PLACEHOLDER_STYLE = { height: 64 };
+
 export const LiveTVGuideRow = ({
   channel,
   programs,
@@ -49,7 +51,7 @@ export const LiveTVGuideRow = ({
   };
 
   if (!isVisible) {
-    return <View style={{ height: 64 }} />;
+    return <View style={PLACEHOLDER_STYLE} />;
   }
 
   return (

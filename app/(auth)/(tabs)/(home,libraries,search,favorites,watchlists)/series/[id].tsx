@@ -52,7 +52,7 @@ const page: React.FC = () => {
     queryKey: ["series", seriesId, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
-        return buildOfflineSeriesFromEpisodes(getDownloadedItems(), seriesId);
+        return buildOfflineSeriesFromEpisodes(downloadedItems, seriesId);
       }
       return await getUserItemData({
         api,
@@ -98,7 +98,7 @@ const page: React.FC = () => {
     queryKey: ["AllEpisodes", seriesId, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
-        return getDownloadedEpisodesForSeries(getDownloadedItems(), seriesId);
+        return getDownloadedEpisodesForSeries(downloadedItems, seriesId);
       }
       if (!api || !user?.Id) return [];
 

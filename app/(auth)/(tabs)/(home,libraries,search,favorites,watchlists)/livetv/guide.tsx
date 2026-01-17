@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,8 +40,14 @@ export default function page() {
     },
   });
 
+  // Memoize channel IDs to prevent unnecessary programs query refetches
+  const channelIds = useMemo(
+    () => channels?.Items?.map((c) => c.Id).filter(Boolean) as string[],
+    [channels?.Items]
+  );
+
   const { data: programs } = useQuery({
-    queryKey: ["livetv", "programs", date, currentPage],
+    queryKey: ["livetv", "programs", date, currentPage, channelIds],
     queryFn: async () => {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
@@ -55,9 +61,7 @@ export default function page() {
         getProgramsDto: {
           MaxStartDate: endOfDay.toISOString(),
           MinEndDate: isToday ? now.toISOString() : startOfDay.toISOString(),
-          ChannelIds: channels?.Items?.map((c) => c.Id).filter(
-            Boolean,
-          ) as string[],
+          ChannelIds: channelIds,
           ImageTypeLimit: 1,
           EnableImages: false,
           SortBy: ["StartDate"],
@@ -67,7 +71,7 @@ export default function page() {
       });
       return res.data;
     },
-    enabled: !!channels,
+    enabled: !!channels && !!channelIds,
   });
 
   const screenWidth = Dimensions.get("window").width;

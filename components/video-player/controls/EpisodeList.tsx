@@ -148,21 +148,25 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     // Don't prefetch when offline - data is already local
     if (isOffline) return;
 
-    for (const e of episodes || []) {
-      queryClient.prefetchQuery({
-        queryKey: ["item", e.Id],
-        queryFn: async () => {
-          if (!e.Id) return;
-          const res = await getUserItemData({
-            api,
-            userId: user?.Id,
-            itemId: e.Id,
-          });
-          return res;
-        },
-        staleTime: 60 * 5 * 1000,
-      });
-    }
+    // Parallelize prefetch to avoid sequential API calls
+    Promise.all(
+      (episodes || [])
+        .filter((e) => e.Id) // Filter out episodes without IDs
+        .map((e) =>
+          queryClient.prefetchQuery({
+            queryKey: ["item", e.Id],
+            queryFn: async () => {
+              const res = await getUserItemData({
+                api,
+                userId: user?.Id,
+                itemId: e.Id!,
+              });
+              return res;
+            },
+            staleTime: 60 * 5 * 1000,
+          })
+        )
+    );
   }, [episodes, isOffline]);
 
   // Scroll to the current item when episodes are fetched
