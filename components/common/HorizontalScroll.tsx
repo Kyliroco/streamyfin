@@ -18,6 +18,7 @@ interface HorizontalScrollProps<T>
   loading?: boolean;
   extraData?: any;
   noItemsText?: string;
+  estimatedItemSize?: number; // Estimated item width for horizontal lists
 }
 
 export const HorizontalScroll = <T,>(
@@ -35,6 +36,7 @@ export const HorizontalScroll = <T,>(
     height = 164,
     extraData,
     noItemsText,
+    estimatedItemSize = 140, // Default width for movie/series posters
     ref,
     ...restProps
   } = props;
@@ -81,6 +83,7 @@ export const HorizontalScroll = <T,>(
         extraData={extraData}
         renderItem={renderFlashListItem}
         horizontal
+        estimatedItemSize={estimatedItemSize}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={memoizedContentContainerStyle}
         keyExtractor={keyExtractor}

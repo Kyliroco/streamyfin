@@ -4,7 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, ScrollView, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
@@ -74,7 +79,7 @@ export default function page() {
     enabled: !!channels && !!channelIds,
   });
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
 
   const [scrollX, setScrollX] = useState(0);
 
