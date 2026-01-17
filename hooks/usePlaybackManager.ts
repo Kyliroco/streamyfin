@@ -68,9 +68,10 @@ export const usePlaybackManager = ({
 }: PlaybackManagerProps = {}) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  const { isConnected } = useNetworkStatus();
   const queryClient = useQueryClient();
-  const { getDownloadedItemById, updateDownloadedItem, getDownloadedItems } =
+  const { isConnected } = useNetworkStatus();
+  // PERFORMANCE FIX: Use cached downloadedItems instead of getDownloadedItems()
+  const { getDownloadedItemById, updateDownloadedItem, downloadedItems } =
     useDownload();
 
   /** Whether the device is online. actually it's connected to the internet. */
@@ -85,7 +86,7 @@ export const usePlaybackManager = ({
       }
 
       if (isOffline) {
-        return getOfflineAdjacentItems(item, getDownloadedItems() || []);
+        return getOfflineAdjacentItems(item, downloadedItems || []);
       }
 
       if (!api) {
