@@ -325,6 +325,7 @@ export default function page() {
     item,
     user?.Id,
     downloadedItem,
+    offline,
   ]);
 
   useEffect(() => {

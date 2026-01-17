@@ -32,7 +32,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const router = useRouter();
-  const { isOffline } = useOfflineMode();
+  const isOffline = useOfflineMode();
   // PERFORMANCE FIX: Use cached downloadedItems from provider instead of calling getDownloadedItems()
   // This avoids expensive database parsing and unnecessary re-renders
   const { downloadedItems: downloadedFiles } = useDownload();
