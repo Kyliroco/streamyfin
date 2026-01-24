@@ -181,6 +181,14 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     [hasNextPage, isFetchingNextPage, fetchNextPage]
   );
 
+  const loadingIndicatorStyle = useMemo(
+    () => ({
+      marginLeft: 8,
+      marginTop: orientation === "horizontal" ? 37 : 70,
+    }),
+    [orientation]
+  );
+
   if (hideIfEmpty === true && allItems.length === 0 && !isLoading) return null;
   if (disabled || !title) return null;
 
@@ -245,15 +253,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
             ))}
             {/* Loading indicator for next page */}
             {isFetchingNextPage && (
-              <View
-                style={useMemo(
-                  () => ({
-                    marginLeft: 8,
-                    marginTop: orientation === "horizontal" ? 37 : 70,
-                  }),
-                  [orientation]
-                )}
-              >
+              <View style={loadingIndicatorStyle}>
                 <ActivityIndicator size='small' color={Colors.primary} />
               </View>
             )}
