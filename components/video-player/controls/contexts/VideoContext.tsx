@@ -128,6 +128,8 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
       mediaSourceId: mediaSource?.Id ?? "",
       bitrateValue: bitrateValue,
       playbackPosition: String(currentPositionTicks),
+      // Preserve offline mode — without this, the player switches to server streaming
+      ...(offline && { offline: "true" }),
     }).toString();
     router.replace(`player/direct-player?${queryParams}` as any);
   };
