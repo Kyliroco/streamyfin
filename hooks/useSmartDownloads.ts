@@ -1,15 +1,16 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useAtomValue } from "jotai";
 import { useCallback, useRef } from "react";
 import { useDownload } from "@/providers/DownloadProvider";
 import { getAllDownloadedItems } from "@/providers/Downloads/database";
+import { calculateTotalDownloadedSize } from "@/providers/Downloads/fileOperations";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSmartDownloadSettings } from "@/utils/atoms/smartDownloads";
 import { useSettings } from "@/utils/atoms/settings";
+import { useSmartDownloadSettings } from "@/utils/atoms/smartDownloads";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadUrl } from "@/utils/jellyfin/media/getDownloadUrl";
-import { useAtomValue } from "jotai";
 
 /**
  * Fetches all episodes for a series, sorted by season and episode number.
@@ -36,18 +37,7 @@ const fetchAllSeriesEpisodes = async (
 };
 
 /**
- * Finds the index of the current episode in the sorted episode list.
- * Uses the episode ID for exact matching.
- */
-const findCurrentEpisodeIndex = (
-  episodes: BaseItemDto[],
-  currentEpisodeId: string,
-): number => {
-  return episodes.findIndex((ep) => ep.Id === currentEpisodeId);
-};
-
-/**
- * Gets the next N unwatched episodes starting from the episode after the current one,
+ * Gets the next N episodes starting from the episode after the current one,
  * spanning across seasons.
  */
 const getNextEpisodesToDownload = (
@@ -56,32 +46,40 @@ const getNextEpisodesToDownload = (
   count: number,
 ): BaseItemDto[] => {
   const nextEpisodes: BaseItemDto[] = [];
-  for (let i = currentIndex + 1; i < allEpisodes.length && nextEpisodes.length < count; i++) {
+  for (
+    let i = currentIndex + 1;
+    i < allEpisodes.length && nextEpisodes.length < count;
+    i++
+  ) {
     nextEpisodes.push(allEpisodes[i]);
   }
   return nextEpisodes;
 };
 
 /**
- * Gets watched episodes that can be cleaned up.
- * An episode is eligible for cleanup if:
- * 1. It has been watched (Played = true or PlayedPercentage > 90)
- * 2. There are at least 3 downloaded episodes ahead of it that are NOT watched
+ * Gets watched episodes eligible for cleanup.
+ * An episode is eligible for deletion when:
+ * - It has been watched (Played = true or PlayedPercentage > 90)
+ * - The user has WATCHED at least `watchedBeforeDelete` episodes AFTER it
+ *   (in series order, regardless of whether those later episodes are downloaded)
+ *
+ * Example with watchedBeforeDelete=3:
+ *   E1(watched, downloaded) E2(watched) E3(watched) E4(watched) E5(not watched)
+ *   → E1 can be deleted because 3 episodes after it (E2, E3, E4) have been watched
  */
 const getEpisodesEligibleForCleanup = (
   allEpisodes: BaseItemDto[],
   downloadedEpisodeIds: Set<string>,
+  watchedBeforeDelete: number,
 ): string[] => {
-  const MIN_EPISODES_AHEAD = 3;
   const idsToDelete: string[] = [];
 
-  // Get all downloaded episodes in order
+  // Only consider downloaded episodes
   const downloadedInOrder = allEpisodes.filter(
     (ep) => ep.Id && downloadedEpisodeIds.has(ep.Id),
   );
 
-  for (let i = 0; i < downloadedInOrder.length; i++) {
-    const episode = downloadedInOrder[i];
+  for (const episode of downloadedInOrder) {
     if (!episode.Id) continue;
 
     const isWatched =
@@ -90,20 +88,24 @@ const getEpisodesEligibleForCleanup = (
 
     if (!isWatched) continue;
 
-    // Count how many downloaded episodes are ahead of this one (in the full series order)
+    // Count how many episodes AFTER this one have been watched (in the full series order)
     const episodeFullIndex = allEpisodes.findIndex(
       (ep) => ep.Id === episode.Id,
     );
-    let downloadedAhead = 0;
+    let watchedAfter = 0;
 
     for (let j = episodeFullIndex + 1; j < allEpisodes.length; j++) {
       const futureEp = allEpisodes[j];
-      if (futureEp.Id && downloadedEpisodeIds.has(futureEp.Id)) {
-        downloadedAhead++;
+      const futureWatched =
+        futureEp.UserData?.Played === true ||
+        (futureEp.UserData?.PlayedPercentage ?? 0) > 90;
+
+      if (futureWatched) {
+        watchedAfter++;
       }
     }
 
-    if (downloadedAhead >= MIN_EPISODES_AHEAD) {
+    if (watchedAfter >= watchedBeforeDelete) {
       idsToDelete.push(episode.Id);
     }
   }
@@ -120,8 +122,7 @@ export const useSmartDownloads = () => {
   const user = useAtomValue(userAtom);
   const { settings: appSettings } = useSettings();
   const { settings: smartSettings, isEnabled } = useSmartDownloadSettings();
-  const { startBackgroundDownload, deleteFile, downloadedItems, processes } =
-    useDownload();
+  const { startBackgroundDownload, deleteFile, processes } = useDownload();
 
   // Prevent concurrent processing
   const processingRef = useRef<Set<string>>(new Set());
@@ -129,10 +130,11 @@ export const useSmartDownloads = () => {
   /**
    * Process smart downloads for a specific episode that was just watched.
    * This will:
-   * 1. Check if smart downloads are enabled for this series
+   * 1. Check if smart downloads are enabled globally and for this series
    * 2. Determine which episodes to download next (including cross-season)
-   * 3. Auto-delete watched episodes if enough episodes are buffered ahead
-   * 4. Trigger downloads for missing episodes
+   * 3. Respect the max download size limit
+   * 4. Auto-delete watched episodes once N episodes after them have been watched
+   * 5. Trigger downloads for missing episodes
    */
   const processSmartDownloads = useCallback(
     async (watchedEpisode: BaseItemDto) => {
@@ -143,6 +145,12 @@ export const useSmartDownloads = () => {
         return;
       }
 
+      // Check global toggle
+      if (!appSettings.smartDownloadEnabled) {
+        return;
+      }
+
+      // Check per-series toggle
       if (!isEnabled(seriesId)) {
         return;
       }
@@ -158,6 +166,9 @@ export const useSmartDownloads = () => {
         if (!seriesSettings) return;
 
         const { episodesAhead } = seriesSettings;
+        const watchedBeforeDelete =
+          appSettings.smartDownloadWatchedEpisodesBeforeDelete;
+        const maxSizeBytes = appSettings.smartDownloadMaxSizeGB * 1024 * 1024 * 1024;
 
         // 1. Fetch all episodes in the series (across all seasons)
         const allEpisodes = await fetchAllSeriesEpisodes(
@@ -169,7 +180,9 @@ export const useSmartDownloads = () => {
         if (allEpisodes.length === 0) return;
 
         // 2. Find where we are in the series
-        const currentIndex = findCurrentEpisodeIndex(allEpisodes, episodeId);
+        const currentIndex = allEpisodes.findIndex(
+          (ep) => ep.Id === episodeId,
+        );
         if (currentIndex === -1) return;
 
         // 3. Determine which episodes should be downloaded ahead
@@ -201,17 +214,26 @@ export const useSmartDownloads = () => {
             .map((p) => p.itemId),
         );
 
-        // 5. Download episodes that are not already downloaded or in progress
+        // 5. Check total download size before downloading new episodes
+        const currentTotalSize = calculateTotalDownloadedSize();
+
+        // 6. Download episodes that are not already downloaded or in progress
+        let accumulatedSize = currentTotalSize;
         for (const episode of episodesToDownload) {
           if (!episode.Id) continue;
           if (downloadedIds.has(episode.Id)) continue;
           if (downloadingIds.has(episode.Id)) continue;
 
-          try {
-            const playSettings = getDefaultPlaySettings(
-              episode,
-              appSettings,
+          // Check if we'd exceed the max size limit
+          if (accumulatedSize >= maxSizeBytes) {
+            console.log(
+              `[SMART_DOWNLOAD] Skipping download: max size limit reached (${appSettings.smartDownloadMaxSizeGB} GB)`,
             );
+            break;
+          }
+
+          try {
+            const playSettings = getDefaultPlaySettings(episode, appSettings);
 
             if (!playSettings.mediaSource?.Id) continue;
 
@@ -220,8 +242,7 @@ export const useSmartDownloads = () => {
               item: episode,
               userId: user.Id,
               mediaSource: playSettings.mediaSource,
-              maxBitrate:
-                playSettings.bitrate,
+              maxBitrate: playSettings.bitrate,
               audioStreamIndex: playSettings.audioIndex ?? -1,
               subtitleStreamIndex: playSettings.subtitleIndex ?? -1,
               deviceId: api.deviceInfo.id,
@@ -239,6 +260,10 @@ export const useSmartDownloads = () => {
               playSettings.subtitleIndex,
             );
 
+            // Estimate size from media source for tracking
+            const estimatedSize = episode.MediaSources?.[0]?.Size ?? 0;
+            accumulatedSize += estimatedSize;
+
             console.log(
               `[SMART_DOWNLOAD] Queued download: S${episode.ParentIndexNumber}E${episode.IndexNumber} - ${episode.Name}`,
             );
@@ -250,8 +275,7 @@ export const useSmartDownloads = () => {
           }
         }
 
-        // 6. Clean up watched episodes (only if 3+ episodes downloaded ahead)
-        // Re-fetch downloaded items since we may have just added some
+        // 7. Clean up watched episodes where N episodes after them have been watched
         const updatedDownloads = getAllDownloadedItems();
         const updatedDownloadedIds = new Set(
           updatedDownloads
@@ -263,6 +287,7 @@ export const useSmartDownloads = () => {
         const idsToDelete = getEpisodesEligibleForCleanup(
           allEpisodes,
           updatedDownloadedIds,
+          watchedBeforeDelete,
         );
 
         for (const id of idsToDelete) {
@@ -279,7 +304,10 @@ export const useSmartDownloads = () => {
           }
         }
       } catch (error) {
-        console.error("[SMART_DOWNLOAD] Error processing smart downloads:", error);
+        console.error(
+          "[SMART_DOWNLOAD] Error processing smart downloads:",
+          error,
+        );
       } finally {
         processingRef.current.delete(seriesId);
       }

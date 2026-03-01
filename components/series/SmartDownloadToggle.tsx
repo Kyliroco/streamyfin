@@ -12,6 +12,7 @@ import { Pressable } from "react-native-gesture-handler";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { RoundButton } from "@/components/RoundButton";
+import { useSettings } from "@/utils/atoms/settings";
 import { useSmartDownloadSettings } from "@/utils/atoms/smartDownloads";
 
 interface Props {
@@ -21,9 +22,11 @@ interface Props {
 const EPISODES_AHEAD_OPTIONS = [1, 2, 3, 5, 10];
 
 export const SmartDownloadToggle: FC<Props> = ({ seriesId }) => {
+  const { settings } = useSettings();
   const { isEnabled, getSeriesSettings, toggleSeries, setEpisodesAhead } =
     useSmartDownloadSettings();
 
+  const globalEnabled = settings.smartDownloadEnabled;
   const enabled = isEnabled(seriesId);
   const currentSettings = getSeriesSettings(seriesId);
   const [selectedCount, setSelectedCount] = useState(
@@ -33,12 +36,8 @@ export const SmartDownloadToggle: FC<Props> = ({ seriesId }) => {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
 
   const handleButtonPress = useCallback(() => {
-    if (enabled) {
-      bottomSheetRef.current?.present();
-    } else {
-      bottomSheetRef.current?.present();
-    }
-  }, [enabled]);
+    bottomSheetRef.current?.present();
+  }, []);
 
   const handleToggle = useCallback(() => {
     toggleSeries(seriesId, selectedCount);
@@ -64,6 +63,11 @@ export const SmartDownloadToggle: FC<Props> = ({ seriesId }) => {
     ),
     [],
   );
+
+  // Don't show the button if smart downloads are globally disabled
+  if (!globalEnabled) {
+    return null;
+  }
 
   return (
     <View>
