@@ -88,7 +88,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
     );
 
     return () => {
-      // volumeListener.remove();
+      _volumeListener.remove();
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
