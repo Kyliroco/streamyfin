@@ -383,15 +383,7 @@ export default function page() {
       positionTicks: currentTimeInTicks,
       playSessionId: stream.sessionId,
     });
-  }, [
-    api,
-    item,
-    mediaSourceId,
-    stream,
-    progress,
-    offline,
-    revalidateProgressCache,
-  ]);
+  }, [api, item, mediaSourceId, stream, progress, offline]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
@@ -402,7 +394,7 @@ export default function page() {
     setIsPlaybackStopped(true);
     videoRef.current?.pause();
     revalidateProgressCache();
-  }, [videoRef, reportPlaybackStopped, progress]);
+  }, [videoRef, reportPlaybackStopped, progress, revalidateProgressCache]);
 
   useEffect(() => {
     const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
@@ -704,7 +696,7 @@ export default function page() {
         setIsBuffering(isLoading);
       }
     },
-    [playbackManager, item?.Id, progress],
+    [playbackManager, item?.Id, progress, currentPlayStateInfo],
   );
 
   /** PiP handler for MPV */

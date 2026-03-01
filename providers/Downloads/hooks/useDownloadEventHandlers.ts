@@ -50,6 +50,26 @@ export function useDownloadEventHandlers({
 }: UseDownloadEventHandlersProps) {
   const { t } = useTranslation();
 
+  // Use a ref so event callbacks always read the latest processes list without
+  // causing the listeners to be torn down and re-added on every progress event.
+  const processesRef = useRef(processes);
+  useEffect(() => {
+    processesRef.current = processes;
+  }, [processes]);
+
+  // Track pending removal timeouts so they can be cancelled if the hook unmounts
+  // before they fire (prevents calling setState on an unmounted component).
+  const pendingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(
+    new Set(),
+  );
+  useEffect(() => {
+    return () => {
+      for (const id of pendingTimeoutsRef.current) {
+        clearTimeout(id);
+      }
+    };
+  }, []);
+
   // Handle download started events
   useEffect(() => {
     const startedSub = BackgroundDownloader.addStartedListener(
@@ -64,7 +84,7 @@ export function useDownloadEventHandlers({
 
           if (!processId) {
             // Fallback: search by matching URL in processes
-            const matchingProcess = processes.find(
+            const matchingProcess = processesRef.current.find(
               (p) => p.inputUrl === event.url,
             );
             if (matchingProcess) {
@@ -93,7 +113,7 @@ export function useDownloadEventHandlers({
     );
 
     return () => startedSub.remove();
-  }, [taskMapRef, updateProcess, processes]);
+  }, [taskMapRef, updateProcess]);
 
   // Track last logged progress per process to avoid spam
   const lastLoggedProgress = useRef<Map<string, number>>(new Map());
@@ -141,7 +161,7 @@ export function useDownloadEventHandlers({
           estimatedTotalBytes = event.totalBytes;
         } else {
           // Transcoding - estimate from bitrate
-          const process = processes.find((p) => p.id === processId);
+          const process = processesRef.current.find((p) => p.id === processId);
           console.log(
             `[DPL] Transcoding detected, looking for process ${processId}, found:`,
             process ? "yes" : "no",
@@ -216,7 +236,7 @@ export function useDownloadEventHandlers({
     );
 
     return () => progressSub.remove();
-  }, [taskMapRef, updateProcess, processes]);
+  }, [taskMapRef, updateProcess]);
 
   // Handle download completion events
   useEffect(() => {
@@ -225,7 +245,7 @@ export function useDownloadEventHandlers({
         const processId = taskMapRef.current.get(event.taskId);
         if (!processId) return;
 
-        const process = processes.find((p) => p.id === processId);
+        const process = processesRef.current.find((p) => p.id === processId);
         if (!process) return;
 
         try {
@@ -287,9 +307,11 @@ export function useDownloadEventHandlers({
           clearSpeedData(processId);
 
           // Remove process after short delay
-          setTimeout(() => {
+          const completeTimeoutId = setTimeout(() => {
+            pendingTimeoutsRef.current.delete(completeTimeoutId);
             removeProcess(processId);
           }, 2000);
+          pendingTimeoutsRef.current.add(completeTimeoutId);
         } catch (error) {
           console.error("Error handling download completion:", error);
           updateProcess(processId, { status: "error" });
@@ -300,16 +322,7 @@ export function useDownloadEventHandlers({
     );
 
     return () => completeSub.remove();
-  }, [
-    taskMapRef,
-    processes,
-    updateProcess,
-    removeProcess,
-    onSuccess,
-    onDataChange,
-    api,
-    t,
-  ]);
+  }, [taskMapRef, updateProcess, removeProcess, onSuccess, onDataChange, api, t]);
 
   // Handle download error events
   useEffect(() => {
@@ -318,7 +331,7 @@ export function useDownloadEventHandlers({
         const processId = taskMapRef.current.get(event.taskId);
         if (!processId) return;
 
-        const process = processes.find((p) => p.id === processId);
+        const process = processesRef.current.find((p) => p.id === processId);
         if (!process) return;
 
         console.error(`Download error for ${processId}:`, event.error);
@@ -339,12 +352,14 @@ export function useDownloadEventHandlers({
         );
 
         // Remove process after short delay
-        setTimeout(() => {
+        const errorTimeoutId = setTimeout(() => {
+          pendingTimeoutsRef.current.delete(errorTimeoutId);
           removeProcess(processId);
         }, 3000);
+        pendingTimeoutsRef.current.add(errorTimeoutId);
       },
     );
 
     return () => errorSub.remove();
-  }, [taskMapRef, processes, updateProcess, removeProcess, t]);
+  }, [taskMapRef, updateProcess, removeProcess, t]);
 }
