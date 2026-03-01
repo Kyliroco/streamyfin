@@ -74,6 +74,11 @@ interface Props {
   transcodeReasons?: string[];
 }
 
+const ANIM_CONFIG = {
+  duration: 300,
+  easing: Easing.out(Easing.quad),
+} as const;
+
 export const Controls: FC<Props> = ({
   item,
   seek,
@@ -133,24 +138,21 @@ export const Controls: FC<Props> = ({
   const headerTranslateY = useSharedValue(showControls ? 0 : -50);
   const bottomTranslateY = useSharedValue(showControls ? 0 : 50);
 
+  const animateControlsIn = useCallback(() => {
+    controlsOpacity.value = withTiming(1, ANIM_CONFIG);
+    headerTranslateY.value = withTiming(0, ANIM_CONFIG);
+    bottomTranslateY.value = withTiming(0, ANIM_CONFIG);
+  }, [controlsOpacity, headerTranslateY, bottomTranslateY]);
+
+  const animateControlsOut = useCallback(() => {
+    controlsOpacity.value = withTiming(0, ANIM_CONFIG);
+    headerTranslateY.value = withTiming(-10, ANIM_CONFIG);
+    bottomTranslateY.value = withTiming(10, ANIM_CONFIG);
+  }, [controlsOpacity, headerTranslateY, bottomTranslateY]);
+
   useEffect(() => {
     prefetchAllTrickplayImages();
   }, [prefetchAllTrickplayImages]);
-
-  // Animate controls visibility
-  useEffect(() => {
-    const animationConfig = {
-      duration: 300,
-      easing: Easing.out(Easing.quad),
-    };
-
-    controlsOpacity.value = withTiming(showControls ? 1 : 0, animationConfig);
-    headerTranslateY.value = withTiming(
-      showControls ? 0 : -10,
-      animationConfig,
-    );
-    bottomTranslateY.value = withTiming(showControls ? 0 : 10, animationConfig);
-  }, [showControls, controlsOpacity, headerTranslateY, bottomTranslateY]);
 
   // Create animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -215,10 +217,13 @@ export const Controls: FC<Props> = ({
     if (showControls) {
       setShowAudioSlider(false);
       setShowControls(false);
+      // Trigger animation immediately — don't wait for the React re-render cycle
+      animateControlsOut();
     } else {
       setShowControls(true);
+      animateControlsIn();
     }
-  }, [showControls, setShowControls]);
+  }, [showControls, setShowControls, animateControlsIn, animateControlsOut]);
 
   // Remote control hook
   const {
@@ -437,7 +442,8 @@ export const Controls: FC<Props> = ({
   const hideControls = useCallback(() => {
     setShowControls(false);
     setShowAudioSlider(false);
-  }, [setShowControls]);
+    animateControlsOut();
+  }, [setShowControls, animateControlsOut]);
 
   const { handleControlsInteraction } = useControlsTimeout({
     showControls,
@@ -445,7 +451,6 @@ export const Controls: FC<Props> = ({
     episodeView,
     onHideControls: hideControls,
     timeout: CONTROLS_CONSTANTS.TIMEOUT,
-    disabled: true,
   });
 
   const switchOnEpisodeMode = useCallback(() => {
