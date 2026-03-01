@@ -504,6 +504,8 @@ export default function page() {
       isSeeking,
       isPlaybackStopped,
       isBuffering,
+      // currentPlayStateInfo captures isMuted; without it, IsMuted is stale after toggling mute
+      currentPlayStateInfo,
     ],
   );
 
