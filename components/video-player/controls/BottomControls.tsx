@@ -197,15 +197,15 @@ export const BottomControls: FC<BottomControlsProps> = ({
               containerStyle={{
                 borderRadius: 100,
               }}
-              renderBubble={() =>
-                (isSliding || showRemoteBubble) && (
-                  <TrickplayBubble
-                    trickPlayUrl={trickPlayUrl}
-                    trickplayInfo={trickplayInfo}
-                    time={time}
-                  />
-                )
-              }
+              renderBubble={() => (
+                <TrickplayBubble
+                  trickPlayUrl={
+                    isSliding || showRemoteBubble ? trickPlayUrl : null
+                  }
+                  trickplayInfo={trickplayInfo}
+                  time={time}
+                />
+              )}
               sliderHeight={10}
               thumbWidth={0}
               progress={effectiveProgress}
