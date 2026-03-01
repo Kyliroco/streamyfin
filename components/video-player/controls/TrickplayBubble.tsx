@@ -1,6 +1,5 @@
-import { Image } from "expo-image";
 import type { FC } from "react";
-import { View } from "react-native";
+import { Image, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { CONTROLS_CONSTANTS } from "./constants";
 
@@ -30,7 +29,9 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
   time,
 }) => {
   if (!trickPlayUrl || !trickplayInfo) {
-    return null;
+    // Always render a placeholder view so react-native-awesome-slider's Reanimated
+    // layout animations never target a removed view (prevents RetryableMountingLayerException)
+    return <View style={{ width: 0, height: 0 }} />;
   }
 
   const { x, y, url } = trickPlayUrl;
@@ -61,7 +62,6 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
         className='bg-neutral-800 overflow-hidden'
       >
         <Image
-          cachePolicy={"memory-disk"}
           style={{
             width: tileWidth * (trickplayInfo.data.TileWidth ?? 1),
             height:
@@ -73,7 +73,7 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
             ],
           }}
           source={{ uri: url }}
-          contentFit='cover'
+          resizeMode='cover'
         />
       </View>
       <Text
