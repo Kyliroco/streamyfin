@@ -14,6 +14,7 @@ import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
+import { SmartDownloadToggle } from "@/components/series/SmartDownloadToggle";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
@@ -134,6 +135,9 @@ const page: React.FC = () => {
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <View className='flex flex-row items-center space-x-2'>
             <AddToFavorites item={item} />
+            {!Platform.isTV && (
+              <SmartDownloadToggle seriesId={seriesId} />
+            )}
             {!Platform.isTV && (
               <DownloadItems
                 size='large'
