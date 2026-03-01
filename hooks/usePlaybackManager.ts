@@ -79,7 +79,15 @@ export const usePlaybackManager = ({
 
   // Adjacent episodes logic
   const { data: adjacentItems } = useQuery({
-    queryKey: ["adjacentItems", item?.Id, item?.SeriesId, isOffline],
+    // Include downloadedItems.length so offline adjacent-episode list refreshes
+    // when downloads are added or removed
+    queryKey: [
+      "adjacentItems",
+      item?.Id,
+      item?.SeriesId,
+      isOffline,
+      isOffline ? (downloadedItems?.length ?? 0) : 0,
+    ],
     queryFn: async (): Promise<BaseItemDto[] | null> => {
       if (!item || !item.SeriesId) {
         return null;
@@ -272,7 +280,8 @@ export const usePlaybackManager = ({
             Played: false,
             PlaybackPositionTicks: 0,
             PlayedPercentage: 0,
-            LastPlayedDate: new Date().toISOString(), // Keep track of when it was marked unplayed
+            // Preserve original LastPlayedDate — this field means "when was it last played",
+            // not "when was it marked unplayed". The server clears it on markUnplayedItem.
           },
         },
       });
