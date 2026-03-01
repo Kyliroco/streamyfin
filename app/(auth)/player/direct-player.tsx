@@ -405,8 +405,9 @@ export default function page() {
 
     return {
       ItemId: item.Id,
-      AudioStreamIndex: audioIndex ? audioIndex : undefined,
-      SubtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+      AudioStreamIndex: audioIndex !== undefined ? audioIndex : undefined,
+      // subtitleIndex -1 means "disabled" in Jellyfin API, report as undefined
+      SubtitleStreamIndex: subtitleIndex >= 0 ? subtitleIndex : undefined,
       MediaSourceId: mediaSourceId,
       PositionTicks: msToTicks(progress.get()),
       IsPaused: !isPlaying,
@@ -886,13 +887,6 @@ export default function page() {
     );
   }
 
-  if (itemStatus.isError || streamStatus.isError)
-    return (
-      <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
-        <Text className='text-white'>{t("player.error")}</Text>
-      </View>
-    );
-
   return (
     <OfflineModeProvider isOffline={offline}>
       <PlayerProvider
@@ -902,6 +896,7 @@ export default function page() {
         isVideoLoaded={isVideoLoaded}
         tracksReady={tracksReady}
         downloadedItem={downloadedItem}
+        getPositionTicks={() => msToTicks(progress.get())}
       >
         <VideoProvider>
           <View
