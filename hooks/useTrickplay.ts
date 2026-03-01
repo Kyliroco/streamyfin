@@ -1,7 +1,8 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { Image } from "expo-image";
+import { Image as ExpoImage } from "expo-image";
 import { useGlobalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { Image as RNImage } from "react-native";
 import { useDownload } from "@/providers/DownloadProvider";
 import { ticksToMs } from "@/utils/time";
 import {
@@ -73,9 +74,14 @@ export const useTrickplay = (item: BaseItemDto) => {
     for (let i = 0; i < urls.length; i += maxConcurrent) {
       const batch = urls.slice(i, i + maxConcurrent);
       await Promise.all(
-        batch.map(
-          (url) => Image.prefetch(url).catch(() => {}), // Ignore errors
-        ),
+        batch.map((url) => {
+          // Use RN's Image.prefetch for file:// URLs since expo-image uses
+          // Glide+OkHttp which doesn't support the file:// scheme on Android
+          if (url.startsWith("file://")) {
+            return RNImage.prefetch(url).catch(() => {});
+          }
+          return ExpoImage.prefetch(url).catch(() => {});
+        }),
       );
       // Yield to the event loop between batches to avoid blocking
       await Promise.resolve();
