@@ -185,6 +185,22 @@ export const Controls: FC<Props> = ({
     zIndex: 10,
   }));
 
+  // Dark scrim behind all controls – driven by the same opacity animation so it
+  // is always in sync with the fade-in/out of the controls themselves. Using a
+  // Reanimated view (instead of the previous React-state-based background on
+  // GestureOverlay) avoids the 1–2 frame desync that caused the overlay to be
+  // missing for a brief moment when controls appeared.
+  const overlayAnimatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    opacity: controlsOpacity.value,
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  }));
+
   // Initialize progress values - MPV uses milliseconds
   useEffect(() => {
     if (item) {
@@ -485,6 +501,11 @@ export const Controls: FC<Props> = ({
             onToggleControls={toggleControls}
             onSkipForward={handleSkipForward}
             onSkipBackward={handleSkipBackward}
+          />
+          {/* Dark scrim – animated in sync with controls via Reanimated */}
+          <Animated.View
+            style={overlayAnimatedStyle}
+            pointerEvents='none'
           />
           {/* Technical Info Overlay - rendered outside animated views to stay visible */}
           {getTechnicalInfo && (
