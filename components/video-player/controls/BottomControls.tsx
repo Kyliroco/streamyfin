@@ -118,6 +118,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
         <View
           className='flex flex-col items-start shrink'
           pointerEvents={showControls ? "box-none" : "none"}
+          collapsable={false}
         >
           {item?.Type === "Episode" && (
             <Text className='opacity-50'>
@@ -169,6 +170,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
       <View
         className={"flex flex-col-reverse rounded-lg items-center my-2"}
         pointerEvents={showControls ? "box-none" : "none"}
+        collapsable={false}
       >
         <View className={"flex flex-col w-full shrink"}>
           <View

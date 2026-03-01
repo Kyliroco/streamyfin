@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   runOnJS,
   useAnimatedStyle,
@@ -45,6 +46,11 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
           }
         },
       );
+    } else {
+      // Cancel any running animation so there are no pending UI-thread updates
+      // targeting the Animated.View after it becomes hidden.
+      cancelAnimation(progress);
+      progress.value = 0;
     }
   }, [show, onFinish]);
 
@@ -67,13 +73,17 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
 
   const { t } = useTranslation();
 
-  if (!show) {
-    return null;
-  }
-
+  // Always render (never return null) to keep the native view in Fabric's tree.
+  // Returning null causes a REMOVE/INSERT cycle for the Animated.View inside,
+  // which can race with pending Reanimated layout updates and trigger a
+  // RetryableMountingLayerException. Use size-based hiding instead.
   return (
     <TouchableOpacity
       className='w-32 overflow-hidden rounded-md bg-black/60 border border-neutral-900'
+      style={
+        show ? undefined : { maxWidth: 0, maxHeight: 0, overflow: "hidden" }
+      }
+      pointerEvents={show ? "auto" : "none"}
       {...props}
       onPress={handlePress}
     >
