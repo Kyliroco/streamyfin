@@ -74,6 +74,11 @@ interface Props {
   transcodeReasons?: string[];
 }
 
+const ANIM_CONFIG = {
+  duration: 300,
+  easing: Easing.out(Easing.quad),
+} as const;
+
 export const Controls: FC<Props> = ({
   item,
   seek,
@@ -133,24 +138,21 @@ export const Controls: FC<Props> = ({
   const headerTranslateY = useSharedValue(showControls ? 0 : -50);
   const bottomTranslateY = useSharedValue(showControls ? 0 : 50);
 
+  const animateControlsIn = useCallback(() => {
+    controlsOpacity.value = withTiming(1, ANIM_CONFIG);
+    headerTranslateY.value = withTiming(0, ANIM_CONFIG);
+    bottomTranslateY.value = withTiming(0, ANIM_CONFIG);
+  }, [controlsOpacity, headerTranslateY, bottomTranslateY]);
+
+  const animateControlsOut = useCallback(() => {
+    controlsOpacity.value = withTiming(0, ANIM_CONFIG);
+    headerTranslateY.value = withTiming(-10, ANIM_CONFIG);
+    bottomTranslateY.value = withTiming(10, ANIM_CONFIG);
+  }, [controlsOpacity, headerTranslateY, bottomTranslateY]);
+
   useEffect(() => {
     prefetchAllTrickplayImages();
   }, [prefetchAllTrickplayImages]);
-
-  // Animate controls visibility
-  useEffect(() => {
-    const animationConfig = {
-      duration: 300,
-      easing: Easing.out(Easing.quad),
-    };
-
-    controlsOpacity.value = withTiming(showControls ? 1 : 0, animationConfig);
-    headerTranslateY.value = withTiming(
-      showControls ? 0 : -10,
-      animationConfig,
-    );
-    bottomTranslateY.value = withTiming(showControls ? 0 : 10, animationConfig);
-  }, [showControls, controlsOpacity, headerTranslateY, bottomTranslateY]);
 
   // Create animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -181,6 +183,22 @@ export const Controls: FC<Props> = ({
     left: 0,
     right: 0,
     zIndex: 10,
+  }));
+
+  // Dark scrim behind all controls – driven by the same opacity animation so it
+  // is always in sync with the fade-in/out of the controls themselves. Using a
+  // Reanimated view (instead of the previous React-state-based background on
+  // GestureOverlay) avoids the 1–2 frame desync that caused the overlay to be
+  // missing for a brief moment when controls appeared.
+  const overlayAnimatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    opacity: controlsOpacity.value,
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
   }));
 
   // Initialize progress values - MPV uses milliseconds
@@ -215,10 +233,13 @@ export const Controls: FC<Props> = ({
     if (showControls) {
       setShowAudioSlider(false);
       setShowControls(false);
+      // Trigger animation immediately — don't wait for the React re-render cycle
+      animateControlsOut();
     } else {
       setShowControls(true);
+      animateControlsIn();
     }
-  }, [showControls, setShowControls]);
+  }, [showControls, setShowControls, animateControlsIn, animateControlsOut]);
 
   // Remote control hook
   const {
@@ -445,7 +466,8 @@ export const Controls: FC<Props> = ({
   const hideControls = useCallback(() => {
     setShowControls(false);
     setShowAudioSlider(false);
-  }, [setShowControls]);
+    animateControlsOut();
+  }, [setShowControls, animateControlsOut]);
 
   const { handleControlsInteraction } = useControlsTimeout({
     showControls,
@@ -453,7 +475,6 @@ export const Controls: FC<Props> = ({
     episodeView,
     onHideControls: hideControls,
     timeout: CONTROLS_CONSTANTS.TIMEOUT,
-    disabled: true,
   });
 
   const switchOnEpisodeMode = useCallback(() => {
@@ -480,6 +501,11 @@ export const Controls: FC<Props> = ({
             onToggleControls={toggleControls}
             onSkipForward={handleSkipForward}
             onSkipBackward={handleSkipBackward}
+          />
+          {/* Dark scrim – animated in sync with controls via Reanimated */}
+          <Animated.View
+            style={overlayAnimatedStyle}
+            pointerEvents='none'
           />
           {/* Technical Info Overlay - rendered outside animated views to stay visible */}
           {getTechnicalInfo && (
@@ -561,7 +587,7 @@ export const Controls: FC<Props> = ({
               handleTouchEnd={handleTouchEnd}
               trickPlayUrl={trickPlayUrl}
               trickplayInfo={trickplayInfo}
-              time={isSliding || showRemoteBubble ? time : remoteTime}
+              time={isSliding ? time : remoteTime}
             />
           </Animated.View>
         </>

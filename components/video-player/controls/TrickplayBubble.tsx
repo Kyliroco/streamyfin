@@ -1,6 +1,5 @@
-import { Image } from "expo-image";
 import type { FC } from "react";
-import { View } from "react-native";
+import { Image, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { CONTROLS_CONSTANTS } from "./constants";
 
@@ -24,18 +23,26 @@ interface TrickplayBubbleProps {
   };
 }
 
+/**
+ * IMPORTANT: This component always renders the SAME tree structure (View > View > Image + Text)
+ * regardless of whether trickplay data is available. This prevents React from removing/inserting
+ * child views, which would cause RetryableMountingLayerException when the slider library's
+ * Reanimated animations have pending layout updates targeting removed view tags.
+ */
 export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
   trickPlayUrl,
   trickplayInfo,
   time,
 }) => {
-  if (!trickPlayUrl || !trickplayInfo) {
-    return null;
-  }
+  const isVisible = !!(trickPlayUrl && trickplayInfo);
 
-  const { x, y, url } = trickPlayUrl;
   const tileWidth = CONTROLS_CONSTANTS.TILE_WIDTH;
-  const tileHeight = tileWidth / trickplayInfo.aspectRatio!;
+  const aspectRatio = trickplayInfo?.aspectRatio ?? 1;
+  const tileHeight = tileWidth / aspectRatio;
+
+  const x = trickPlayUrl?.x ?? 0;
+  const y = trickPlayUrl?.y ?? 0;
+  const url = trickPlayUrl?.url;
 
   return (
     <View
@@ -48,6 +55,8 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
         width: tileWidth * 1.5,
         justifyContent: "center",
         alignItems: "center",
+        opacity: isVisible ? 1 : 0,
+        pointerEvents: isVisible ? "auto" : "none",
       }}
     >
       <View
@@ -57,23 +66,23 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
           alignSelf: "center",
           transform: [{ scale: 1.4 }],
           borderRadius: 5,
+          overflow: "hidden",
         }}
-        className='bg-neutral-800 overflow-hidden'
+        className='bg-neutral-800'
       >
         <Image
-          cachePolicy={"memory-disk"}
           style={{
-            width: tileWidth * (trickplayInfo.data.TileWidth ?? 1),
+            width: tileWidth * (trickplayInfo?.data.TileWidth ?? 1),
             height:
-              (tileWidth / (trickplayInfo.aspectRatio ?? 1)) *
-              (trickplayInfo.data.TileHeight ?? 1),
+              (tileWidth / aspectRatio) *
+              (trickplayInfo?.data.TileHeight ?? 1),
             transform: [
               { translateX: -x * tileWidth },
               { translateY: -y * tileHeight },
             ],
           }}
-          source={{ uri: url }}
-          contentFit='cover'
+          source={url ? { uri: url } : undefined}
+          resizeMode='cover'
         />
       </View>
       <Text

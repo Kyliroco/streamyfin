@@ -6,7 +6,7 @@ import { getItemsApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View, type ViewProps } from "react-native";
 import { SectionHeader } from "@/components/common/SectionHeader";
@@ -88,12 +88,12 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
     return items?.map((_, index) => index * ITEM_WIDTH) ?? [];
   }, [items]);
 
-  const handleSeeAll = () => {
+  const handleSeeAll = useCallback(() => {
     router.push({
       pathname: "/(auth)/(tabs)/(watchlists)/[watchlistId]",
       params: { watchlistId: watchlist.id.toString() },
     } as any);
-  };
+  }, [router, watchlist.id]);
 
   if (!isLoading && (!items || items.length === 0)) return null;
 

@@ -46,9 +46,9 @@ function useDownloadProvider() {
     return api?.accessToken;
   }, [api]);
 
-  const APP_CACHE_DOWNLOAD_DIRECTORY = new Directory(
-    Paths.cache,
-    `${Application.applicationId}/Downloads/`,
+  const APP_CACHE_DOWNLOAD_DIRECTORY = useMemo(
+    () => new Directory(Paths.cache, `${Application.applicationId}/Downloads/`),
+    [],
   );
 
   const updateProcess = useCallback(

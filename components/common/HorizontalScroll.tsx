@@ -1,5 +1,5 @@
 import { FlashList, type FlashListProps } from "@shopify/flash-list";
-import React, { useImperativeHandle, useRef } from "react";
+import React, { useImperativeHandle, useMemo, useRef } from "react";
 import { View, type ViewStyle } from "react-native";
 import { Text } from "./Text";
 
@@ -18,6 +18,7 @@ interface HorizontalScrollProps<T>
   loading?: boolean;
   extraData?: any;
   noItemsText?: string;
+  estimatedItemSize?: number; // Estimated item width for horizontal lists
 }
 
 export const HorizontalScroll = <T,>(
@@ -35,6 +36,7 @@ export const HorizontalScroll = <T,>(
     height = 164,
     extraData,
     noItemsText,
+    estimatedItemSize = 140, // Default width for movie/series posters
     ref,
     ...restProps
   } = props;
@@ -56,6 +58,14 @@ export const HorizontalScroll = <T,>(
     <View className='mr-2'>{renderItem(item, index)}</View>
   );
 
+  const memoizedContentContainerStyle = useMemo(
+    () => ({
+      paddingHorizontal: 16,
+      ...contentContainerStyle,
+    }),
+    [contentContainerStyle]
+  );
+
   if (!data || loading) {
     return (
       <View className='px-4'>
@@ -73,11 +83,9 @@ export const HorizontalScroll = <T,>(
         extraData={extraData}
         renderItem={renderFlashListItem}
         horizontal
+        estimatedItemSize={estimatedItemSize}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          ...contentContainerStyle,
-        }}
+        contentContainerStyle={memoizedContentContainerStyle}
         keyExtractor={keyExtractor}
         ListEmptyComponent={() => (
           <View className='flex-1 justify-center items-center'>

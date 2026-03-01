@@ -1,8 +1,10 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo, useRef } from "react";
-import { Dimensions, View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
+
+const PLACEHOLDER_STYLE = { height: 64 };
 
 export const LiveTVGuideRow = ({
   channel,
@@ -16,7 +18,7 @@ export const LiveTVGuideRow = ({
   isVisible?: boolean;
 }) => {
   const _positionRefs = useRef<{ [key: string]: number }>({});
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
 
   const calculateWidth = (s?: string | null, e?: string | null) => {
     if (!s || !e) return 0;
@@ -29,15 +31,21 @@ export const LiveTVGuideRow = ({
   };
 
   const programsWithPositions = useMemo(() => {
+    if (!programs) return undefined;
+
     let cumulativeWidth = 0;
-    return programs
-      ?.filter((p) => p.ChannelId === channel.Id)
-      .map((p) => {
-        const width = calculateWidth(p.StartDate, p.EndDate);
-        const position = cumulativeWidth;
-        cumulativeWidth += width;
-        return { ...p, width, position };
-      });
+    const result: Array<BaseItemDto & { width: number; position: number }> = [];
+
+    for (const p of programs) {
+      if (p.ChannelId !== channel.Id) continue;
+
+      const width = calculateWidth(p.StartDate, p.EndDate);
+      const position = cumulativeWidth;
+      cumulativeWidth += width;
+      result.push({ ...p, width, position });
+    }
+
+    return result;
   }, [programs, channel.Id]);
 
   const isCurrentlyLive = (program: BaseItemDto) => {
@@ -49,7 +57,7 @@ export const LiveTVGuideRow = ({
   };
 
   if (!isVisible) {
-    return <View style={{ height: 64 }} />;
+    return <View style={PLACEHOLDER_STYLE} />;
   }
 
   return (
