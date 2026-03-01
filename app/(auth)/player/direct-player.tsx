@@ -727,6 +727,12 @@ export default function page() {
   }, []);
 
   // Memoize video ref functions to prevent unnecessary re-renders
+  // Stable callback so PlayerContext useMemo doesn't invalidate on every render
+  const getPositionTicks = useCallback(
+    () => msToTicks(progress.get()),
+    [progress],
+  );
+
   const startPictureInPicture = useCallback(async () => {
     return videoRef.current?.startPictureInPicture?.();
   }, []);
@@ -908,7 +914,7 @@ export default function page() {
         isVideoLoaded={isVideoLoaded}
         tracksReady={tracksReady}
         downloadedItem={downloadedItem}
-        getPositionTicks={() => msToTicks(progress.get())}
+        getPositionTicks={getPositionTicks}
       >
         <VideoProvider>
           <View

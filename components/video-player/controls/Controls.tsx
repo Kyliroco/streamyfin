@@ -566,7 +566,7 @@ export const Controls: FC<Props> = ({
               handleTouchEnd={handleTouchEnd}
               trickPlayUrl={trickPlayUrl}
               trickplayInfo={trickplayInfo}
-              time={isSliding || showRemoteBubble ? time : remoteTime}
+              time={isSliding ? time : remoteTime}
             />
           </Animated.View>
         </>
