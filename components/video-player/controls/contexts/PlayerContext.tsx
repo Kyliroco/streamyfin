@@ -19,6 +19,8 @@ interface PlayerContextProps {
   isVideoLoaded: boolean;
   tracksReady: boolean;
   downloadedItem: DownloadedItem | null;
+  /** Returns the current playback position in ticks (live, not from URL params). */
+  getPositionTicks: () => number;
 }
 
 const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
@@ -31,6 +33,7 @@ interface PlayerProviderProps {
   isVideoLoaded: boolean;
   tracksReady: boolean;
   downloadedItem?: DownloadedItem | null;
+  getPositionTicks: () => number;
 }
 
 export const PlayerProvider: React.FC<PlayerProviderProps> = ({
@@ -41,6 +44,7 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   isVideoLoaded,
   tracksReady,
   downloadedItem = null,
+  getPositionTicks,
 }) => {
   const value = useMemo(
     () => ({
@@ -50,8 +54,9 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       isVideoLoaded,
       tracksReady,
       downloadedItem,
+      getPositionTicks,
     }),
-    [playerRef, item, mediaSource, isVideoLoaded, tracksReady, downloadedItem],
+    [playerRef, item, mediaSource, isVideoLoaded, tracksReady, downloadedItem, getPositionTicks],
   );
 
   return (

@@ -68,8 +68,6 @@ export default function page() {
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
-  useEffect(() => {}, []);
-
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
@@ -385,15 +383,7 @@ export default function page() {
       positionTicks: currentTimeInTicks,
       playSessionId: stream.sessionId,
     });
-  }, [
-    api,
-    item,
-    mediaSourceId,
-    stream,
-    progress,
-    offline,
-    revalidateProgressCache,
-  ]);
+  }, [api, item, mediaSourceId, stream, progress, offline]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
@@ -404,7 +394,7 @@ export default function page() {
     setIsPlaybackStopped(true);
     videoRef.current?.pause();
     revalidateProgressCache();
-  }, [videoRef, reportPlaybackStopped, progress]);
+  }, [videoRef, reportPlaybackStopped, progress, revalidateProgressCache]);
 
   useEffect(() => {
     const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
@@ -420,8 +410,9 @@ export default function page() {
 
     return {
       ItemId: item.Id,
-      AudioStreamIndex: audioIndex ? audioIndex : undefined,
-      SubtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+      AudioStreamIndex: audioIndex !== undefined ? audioIndex : undefined,
+      // subtitleIndex -1 means "disabled" in Jellyfin API, report as undefined
+      SubtitleStreamIndex: subtitleIndex >= 0 ? subtitleIndex : undefined,
       MediaSourceId: mediaSourceId,
       PositionTicks: msToTicks(progress.get()),
       IsPaused: !isPlaying,
@@ -505,6 +496,8 @@ export default function page() {
       isSeeking,
       isPlaybackStopped,
       isBuffering,
+      // currentPlayStateInfo captures isMuted; without it, IsMuted is stale after toggling mute
+      currentPlayStateInfo,
     ],
   );
 
@@ -703,7 +696,7 @@ export default function page() {
         setIsBuffering(isLoading);
       }
     },
-    [playbackManager, item?.Id, progress],
+    [playbackManager, item?.Id, progress, currentPlayStateInfo],
   );
 
   /** PiP handler for MPV */
@@ -728,6 +721,12 @@ export default function page() {
   }, []);
 
   // Memoize video ref functions to prevent unnecessary re-renders
+  // Stable callback so PlayerContext useMemo doesn't invalidate on every render
+  const getPositionTicks = useCallback(
+    () => msToTicks(progress.get()),
+    [progress],
+  );
+
   const startPictureInPicture = useCallback(async () => {
     return videoRef.current?.startPictureInPicture?.();
   }, []);
@@ -900,13 +899,6 @@ export default function page() {
     );
   }
 
-  if (itemStatus.isError || streamStatus.isError)
-    return (
-      <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
-        <Text className='text-white'>{t("player.error")}</Text>
-      </View>
-    );
-
   return (
     <OfflineModeProvider isOffline={offline}>
       <PlayerProvider
@@ -916,6 +908,7 @@ export default function page() {
         isVideoLoaded={isVideoLoaded}
         tracksReady={tracksReady}
         downloadedItem={downloadedItem}
+        getPositionTicks={getPositionTicks}
       >
         <VideoProvider>
           <View

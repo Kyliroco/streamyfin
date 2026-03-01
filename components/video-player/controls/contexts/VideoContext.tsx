@@ -77,19 +77,18 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const { tracksReady, mediaSource, downloadedItem } = usePlayerContext();
+  const { tracksReady, mediaSource, downloadedItem, getPositionTicks } = usePlayerContext();
   const playerControls = usePlayerControls();
   const offline = useOfflineMode();
   const router = useRouter();
 
-  const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
+  const { itemId, audioIndex, bitrateValue, subtitleIndex } =
     useLocalSearchParams<{
       itemId: string;
       audioIndex: string;
       subtitleIndex: string;
       mediaSourceId: string;
       bitrateValue: string;
-      playbackPosition: string;
     }>();
 
   const allSubs =
@@ -114,18 +113,23 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   /**
    * Refresh the player with new parameters.
    * This triggers Jellyfin to re-process the stream (e.g., burn in image subs).
+   * Uses live position from the player (not stale URL param) to resume at the correct time.
    */
   const replacePlayer = (params: {
     audioIndex?: string;
     subtitleIndex?: string;
   }) => {
+    // Use live position from SharedValue — playbackPosition URL param can be up to 30s stale
+    const currentPositionTicks = getPositionTicks();
     const queryParams = new URLSearchParams({
       itemId: itemId ?? "",
       audioIndex: params.audioIndex ?? audioIndex,
       subtitleIndex: params.subtitleIndex ?? subtitleIndex,
       mediaSourceId: mediaSource?.Id ?? "",
       bitrateValue: bitrateValue,
-      playbackPosition: playbackPosition,
+      playbackPosition: String(currentPositionTicks),
+      // Preserve offline mode — without this, the player switches to server streaming
+      ...(offline && { offline: "true" }),
     }).toString();
     router.replace(`player/direct-player?${queryParams}` as any);
   };

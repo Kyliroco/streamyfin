@@ -96,5 +96,9 @@ export function getDownloadedItemSize(id: string): number {
  */
 export function calculateTotalDownloadedSize(): number {
   const items = getAllDownloadedItems();
-  return items.reduce((sum, item) => sum + (item.videoFileSize || 0), 0);
+  return items.reduce(
+    (sum, item) =>
+      sum + (item.videoFileSize || 0) + (item.trickPlayData?.size || 0),
+    0,
+  );
 }
