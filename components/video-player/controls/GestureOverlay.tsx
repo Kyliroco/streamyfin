@@ -266,7 +266,8 @@ export const GestureOverlay = ({
     (zone: TapZone) => {
       if (zone === "center") return;
 
-      const seekSeconds = settings.forwardSkipTime;
+      // Forward: +30s per tap, Backward: +10s per tap
+      const seekSeconds = zone === "right" ? 30 : 10;
       lightHaptic();
 
       // Clear reset timeout - user is still tapping
@@ -329,7 +330,6 @@ export const GestureOverlay = ({
       }, DOUBLE_TAP_RESET_DELAY);
     },
     [
-      settings.forwardSkipTime,
       lightHaptic,
       onSeekForward,
       onSeekBackward,
