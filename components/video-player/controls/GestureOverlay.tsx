@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useRef, useState } from "react";
-import { Animated, Pressable } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings } from "@/utils/atoms/settings";
+import type { TapZone } from "./hooks/useGestureDetection";
 import { useGestureDetection } from "./hooks/useGestureDetection";
 import { useVolumeAndBrightness } from "./hooks/useVolumeAndBrightness";
 
@@ -14,6 +15,8 @@ interface Props {
   onToggleControls: () => void;
   onSkipForward: () => void;
   onSkipBackward: () => void;
+  onSeekForward: (seconds: number) => void;
+  onSeekBackward: (seconds: number) => void;
 }
 
 interface FeedbackState {
@@ -23,6 +26,15 @@ interface FeedbackState {
   side?: "left" | "right";
 }
 
+interface DoubleTapState {
+  visible: boolean;
+  side: "left" | "right" | null;
+  accumulatedSeconds: number;
+}
+
+/** Duration to wait before resetting accumulated double-tap seconds */
+const DOUBLE_TAP_RESET_DELAY = 600;
+
 export const GestureOverlay = ({
   screenWidth,
   screenHeight,
@@ -30,6 +42,8 @@ export const GestureOverlay = ({
   onToggleControls,
   onSkipForward,
   onSkipBackward,
+  onSeekForward,
+  onSeekBackward,
 }: Props) => {
   const { settings } = useSettings();
   const lightHaptic = useHaptic("light");
@@ -43,6 +57,19 @@ export const GestureOverlay = ({
   const isDraggingRef = useRef(false);
   const hideTimeoutRef = useRef<number | null>(null);
   const lastUpdateTime = useRef(0);
+
+  // Double-tap seek state
+  const [doubleTap, setDoubleTap] = useState<DoubleTapState>({
+    visible: false,
+    side: null,
+    accumulatedSeconds: 0,
+  });
+  const [doubleTapFadeAnim] = useState(new Animated.Value(0));
+  const [rippleScaleAnim] = useState(new Animated.Value(0));
+  const doubleTapResetTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const accumulatedSecondsRef = useRef(0);
 
   const showFeedback = useCallback(
     (
@@ -235,6 +262,82 @@ export const GestureOverlay = ({
     [endBrightnessDrag, endVolumeDrag, hideDragFeedback],
   );
 
+  const handleDoubleTap = useCallback(
+    (zone: TapZone) => {
+      if (zone === "center") return;
+
+      const seekSeconds = settings.forwardSkipTime;
+      lightHaptic();
+
+      // Clear reset timeout - user is still tapping
+      if (doubleTapResetTimeout.current) {
+        clearTimeout(doubleTapResetTimeout.current);
+        doubleTapResetTimeout.current = null;
+      }
+
+      // Accumulate seconds
+      accumulatedSecondsRef.current += seekSeconds;
+      const totalSeconds = accumulatedSecondsRef.current;
+
+      // Perform the seek
+      requestAnimationFrame(() => {
+        if (zone === "right") {
+          onSeekForward(seekSeconds);
+        } else {
+          onSeekBackward(seekSeconds);
+        }
+      });
+
+      // Update visual state
+      setDoubleTap({
+        visible: true,
+        side: zone === "left" ? "left" : "right",
+        accumulatedSeconds: totalSeconds,
+      });
+
+      // Ripple animation: scale up then reset
+      rippleScaleAnim.setValue(0.3);
+      Animated.parallel([
+        Animated.timing(doubleTapFadeAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rippleScaleAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Schedule reset: fade out and reset accumulated seconds after delay
+      doubleTapResetTimeout.current = setTimeout(() => {
+        accumulatedSecondsRef.current = 0;
+        Animated.timing(doubleTapFadeAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => {
+          requestAnimationFrame(() => {
+            setDoubleTap({
+              visible: false,
+              side: null,
+              accumulatedSeconds: 0,
+            });
+          });
+        });
+      }, DOUBLE_TAP_RESET_DELAY);
+    },
+    [
+      settings.forwardSkipTime,
+      lightHaptic,
+      onSeekForward,
+      onSeekBackward,
+      doubleTapFadeAnim,
+      rippleScaleAnim,
+    ],
+  );
+
   const { handleTouchStart, handleTouchMove, handleTouchEnd } =
     useGestureDetection({
       onSwipeLeft: handleSkipBackward,
@@ -243,6 +346,7 @@ export const GestureOverlay = ({
       onVerticalDragMove: handleVerticalDragMove,
       onVerticalDragEnd: handleVerticalDragEnd,
       onTap: onToggleControls,
+      onDoubleTap: handleDoubleTap,
       screenWidth,
       screenHeight,
     });
@@ -284,7 +388,47 @@ export const GestureOverlay = ({
         }}
       />
 
-      {/* Feedback overlay */}
+      {/* Double-tap seek ripple feedback */}
+      {doubleTap.visible && doubleTap.side && (
+        <Animated.View
+          pointerEvents='none'
+          style={[
+            styles.doubleTapZone,
+            doubleTap.side === "left"
+              ? styles.doubleTapLeft
+              : styles.doubleTapRight,
+            {
+              width: screenWidth / 3,
+              height: screenHeight,
+              opacity: doubleTapFadeAnim,
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.ripple,
+              {
+                transform: [{ scale: rippleScaleAnim }],
+              },
+            ]}
+          />
+          <View style={styles.doubleTapContent}>
+            <Ionicons
+              name={
+                doubleTap.side === "right" ? "play-forward" : "play-back"
+              }
+              size={32}
+              color='white'
+            />
+            <Text style={styles.doubleTapText}>
+              {doubleTap.side === "right" ? "+" : "-"}
+              {doubleTap.accumulatedSeconds}s
+            </Text>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* Feedback overlay (swipe skip / volume / brightness) */}
       {feedback.visible && (
         <Animated.View
           style={{
@@ -331,3 +475,41 @@ export const GestureOverlay = ({
     </>
   );
 };
+
+const styles = StyleSheet.create({
+  doubleTapZone: {
+    position: "absolute",
+    top: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 20,
+    overflow: "hidden",
+  },
+  doubleTapLeft: {
+    left: 0,
+    borderTopRightRadius: 999,
+    borderBottomRightRadius: 999,
+  },
+  doubleTapRight: {
+    right: 0,
+    borderTopLeftRadius: 999,
+    borderBottomLeftRadius: 999,
+  },
+  ripple: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+  },
+  doubleTapContent: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  doubleTapText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+});

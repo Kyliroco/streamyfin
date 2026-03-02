@@ -1,6 +1,8 @@
 import { useCallback, useRef } from "react";
 import type { GestureResponderEvent } from "react-native";
 
+export type TapZone = "left" | "center" | "right";
+
 export interface SwipeGestureOptions {
   minDistance?: number;
   maxDuration?: number;
@@ -14,9 +16,13 @@ export interface SwipeGestureOptions {
   ) => void;
   onVerticalDragEnd?: (side: "left" | "right") => void;
   onTap?: () => void;
+  onDoubleTap?: (zone: TapZone) => void;
   screenWidth?: number;
   screenHeight?: number;
 }
+
+/** Maximum delay between taps to count as a double-tap (ms) */
+const DOUBLE_TAP_DELAY = 300;
 
 export const useGestureDetection = ({
   minDistance = 50,
@@ -27,6 +33,7 @@ export const useGestureDetection = ({
   onVerticalDragMove,
   onVerticalDragEnd,
   onTap,
+  onDoubleTap,
   screenWidth = 400,
   screenHeight = 800,
 }: SwipeGestureOptions = {}) => {
@@ -38,6 +45,21 @@ export const useGestureDetection = ({
   const hasMovedEnough = useRef(false);
   const gestureType = useRef<"none" | "horizontal" | "vertical">("none");
   const shouldIgnoreTouch = useRef(false);
+
+  // Double-tap state
+  const lastTapTime = useRef(0);
+  const lastTapZone = useRef<TapZone | null>(null);
+  const singleTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getTapZone = useCallback(
+    (x: number): TapZone => {
+      const third = screenWidth / 3;
+      if (x < third) return "left";
+      if (x > third * 2) return "right";
+      return "center";
+    },
+    [screenWidth],
+  );
 
   const handleTouchStart = useCallback(
     (event: GestureResponderEvent) => {
@@ -186,8 +208,43 @@ export const useGestureDetection = ({
         touchDuration < 300 &&
         totalDistance < 10
       ) {
-        // It's a tap - short duration and small movement
-        onTap?.();
+        // It's a tap - check for double-tap on side zones
+        const tapX = touchStartPosition.current.x;
+        const zone = getTapZone(tapX);
+        const now = Date.now();
+        const timeSinceLastTap = now - lastTapTime.current;
+
+        if (
+          timeSinceLastTap < DOUBLE_TAP_DELAY &&
+          lastTapZone.current === zone &&
+          zone !== "center"
+        ) {
+          // Double-tap detected on a side zone
+          if (singleTapTimeout.current) {
+            clearTimeout(singleTapTimeout.current);
+            singleTapTimeout.current = null;
+          }
+          lastTapTime.current = now;
+          lastTapZone.current = zone;
+          onDoubleTap?.(zone);
+        } else {
+          lastTapTime.current = now;
+          lastTapZone.current = zone;
+
+          if (zone === "center") {
+            // Center zone: immediate single tap, no double-tap delay
+            onTap?.();
+          } else {
+            // Side zones: delay single tap to wait for potential double-tap
+            if (singleTapTimeout.current) {
+              clearTimeout(singleTapTimeout.current);
+            }
+            singleTapTimeout.current = setTimeout(() => {
+              singleTapTimeout.current = null;
+              onTap?.();
+            }, DOUBLE_TAP_DELAY);
+          }
+        }
       }
 
       hasMovedEnough.current = false;
@@ -200,6 +257,8 @@ export const useGestureDetection = ({
       onSwipeRight,
       onVerticalDragEnd,
       onTap,
+      onDoubleTap,
+      getTapZone,
     ],
   );
 
