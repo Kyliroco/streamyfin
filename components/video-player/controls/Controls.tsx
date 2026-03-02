@@ -510,6 +510,8 @@ export const Controls: FC<Props> = ({
             onToggleControls={toggleControls}
             onSkipForward={handleSkipForward}
             onSkipBackward={handleSkipBackward}
+            onSeekForward={handleSeekForward}
+            onSeekBackward={handleSeekBackward}
           />
           {/* Dark scrim – animated in sync with controls via Reanimated */}
           <Animated.View
