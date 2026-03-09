@@ -36,6 +36,7 @@ import {
   writeInfoLog,
   writeToLog,
 } from "@/utils/log";
+import { initFileLogger } from "@/utils/fileLogger";
 import { storage } from "@/utils/mmkv";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
@@ -62,6 +63,9 @@ import { userAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
+
+// Initialize persistent file logger early to capture all console output and crashes
+initFileLogger();
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
