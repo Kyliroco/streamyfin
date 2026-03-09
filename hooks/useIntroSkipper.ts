@@ -45,11 +45,9 @@ export const useIntroSkipper = (
 
       setShowSkipButton(shouldShow);
     } else {
-      if (showSkipButton) {
-        setShowSkipButton(false);
-      }
+      setShowSkipButton(false);
     }
-  }, [introTimestamps, currentTimeSeconds, showSkipButton]);
+  }, [introTimestamps, currentTimeSeconds]);
 
   const skipIntro = useCallback(() => {
     if (!introTimestamps) return;

@@ -20,6 +20,7 @@ import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import { useSmartDownloads } from "@/hooks/useSmartDownloads";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
@@ -120,6 +121,8 @@ export const Controls: FC<Props> = ({
     item,
     isOffline: offline,
   });
+
+  const { processSmartDownloads } = useSmartDownloads();
 
   const {
     trickPlayUrl,
@@ -408,6 +411,12 @@ export const Controls: FC<Props> = ({
         return;
       }
 
+      // Trigger smart downloads for the episode we just finished watching.
+      // This runs asynchronously in the background and doesn't block navigation.
+      if (item.Type === "Episode") {
+        processSmartDownloads(item);
+      }
+
       if (!isAutoPlay) {
         // if we are not autoplaying, we won't update anything, we just go to the next item
         goToItemCommon(nextItem);
@@ -442,7 +451,7 @@ export const Controls: FC<Props> = ({
         });
       }
     },
-    [nextItem, goToItemCommon],
+    [nextItem, goToItemCommon, item, processSmartDownloads],
   );
 
   // Add a memoized handler for autoplay next episode
@@ -501,6 +510,8 @@ export const Controls: FC<Props> = ({
             onToggleControls={toggleControls}
             onSkipForward={handleSkipForward}
             onSkipBackward={handleSkipBackward}
+            onSeekForward={handleSeekForward}
+            onSeekBackward={handleSeekBackward}
           />
           {/* Dark scrim – animated in sync with controls via Reanimated */}
           <Animated.View

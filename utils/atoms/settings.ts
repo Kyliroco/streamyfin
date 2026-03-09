@@ -211,6 +211,10 @@ export type Settings = {
   preferLocalAudio: boolean;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
+  // Smart downloads
+  smartDownloadEnabled: boolean;
+  smartDownloadMaxSizeGB: number;
+  smartDownloadWatchedEpisodesBeforeDelete: number;
 };
 
 export interface Lockable<T> {
@@ -296,6 +300,10 @@ export const defaultValues: Settings = {
   preferLocalAudio: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
+  // Smart downloads
+  smartDownloadEnabled: false,
+  smartDownloadMaxSizeGB: 10,
+  smartDownloadWatchedEpisodesBeforeDelete: 3,
 };
 
 const loadSettings = (): Partial<Settings> => {

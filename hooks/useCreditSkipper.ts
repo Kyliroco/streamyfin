@@ -65,12 +65,9 @@ export const useCreditSkipper = (
 
       setShowSkipCreditButton(shouldShow);
     } else {
-      // Reset button state when no credit timestamps exist
-      if (showSkipCreditButton) {
-        setShowSkipCreditButton(false);
-      }
+      setShowSkipCreditButton(false);
     }
-  }, [creditTimestamps, currentTimeSeconds, showSkipCreditButton]);
+  }, [creditTimestamps, currentTimeSeconds]);
 
   const skipCredit = useCallback(() => {
     if (!creditTimestamps) return;
