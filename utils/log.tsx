@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import type React from "react";
 import { createContext, useContext } from "react";
+import { writeFileLog } from "./fileLogger";
 import { storage } from "./mmkv";
 
 export type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG";
@@ -55,6 +56,9 @@ export const writeToLog = (level: LogLevel, message: string, data?: any) => {
   const recentLogs = logs.slice(Math.max(logs.length - maxLogs, 0));
 
   storage.set("logs", JSON.stringify(recentLogs));
+
+  // Also write to persistent file log
+  writeFileLog(level, message, data);
 };
 
 export const writeInfoLog = (message: string, data?: any) =>
