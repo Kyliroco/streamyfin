@@ -6,7 +6,7 @@ import { FlashList, type FlashListProps } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { t } from "i18next";
 import { useAtom } from "jotai";
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { View, type ViewStyle } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -89,10 +89,23 @@ export function InfiniteHorizontalScroll({
   });
 
   const flatData = useMemo(() => {
-    return (
-      data?.pages.flatMap((p) => p?.Items?.filter(Boolean) || []) || []
-    ) as BaseItemDto[];
+    return (data?.pages.flatMap((p) => p?.Items?.filter(Boolean) || []) ||
+      []) as BaseItemDto[];
   }, [data]);
+
+  const memoizedContentContainerStyle = useMemo(
+    () => ({
+      paddingHorizontal: 16,
+      ...contentContainerStyle,
+    }),
+    [contentContainerStyle],
+  );
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, fetchNextPage]);
 
   useEffect(() => {
     if (data) {
@@ -126,16 +139,9 @@ export function InfiniteHorizontalScroll({
         )}
         horizontal
         estimatedItemSize={estimatedItemSize}
-        onEndReached={() => {
-          if (hasNextPage) {
-            fetchNextPage();
-          }
-        }}
+        onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          ...contentContainerStyle,
-        }}
+        contentContainerStyle={memoizedContentContainerStyle}
         showsHorizontalScrollIndicator={false}
         ListEmptyComponent={
           <View className='flex-1 justify-center items-center'>

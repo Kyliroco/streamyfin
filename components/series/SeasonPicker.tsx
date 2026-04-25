@@ -38,10 +38,18 @@ const EpisodeItem = React.memo<{
   const { t } = useTranslation();
 
   return (
-    <TouchableItemRouter item={episode} key={episode.Id} className='flex flex-col mb-4'>
+    <TouchableItemRouter
+      item={episode}
+      key={episode.Id}
+      className='flex flex-col mb-4'
+    >
       <View className='flex flex-row items-start mb-2'>
         <View className='mr-2'>
-          <ContinueWatchingPoster size='small' item={episode} useEpisodePoster />
+          <ContinueWatchingPoster
+            size='small'
+            item={episode}
+            useEpisodePoster
+          />
         </View>
         <View className='shrink'>
           <Text numberOfLines={2} className=''>
@@ -78,7 +86,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
   const { t } = useTranslation();
   const isOffline = useOfflineMode();
-  const { getDownloadedItems, downloadedItems } = useDownload();
+  const { downloadedItems } = useDownload();
 
   const seasonIndex = useMemo(
     () => seasonIndexState[item.Id ?? ""],
@@ -89,7 +97,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
-        return buildOfflineSeasons(getDownloadedItems(), item.Id!);
+        return buildOfflineSeasons(downloadedItems, item.Id!);
       }
 
       if (!api || !user?.Id || !item.Id) return [];
@@ -146,7 +154,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     queryFn: async () => {
       if (isOffline) {
         return getDownloadedEpisodesForSeason(
-          getDownloadedItems(),
+          downloadedItems,
           item.Id!,
           selectedSeasonNumber!,
         );
